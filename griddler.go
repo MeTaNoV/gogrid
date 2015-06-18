@@ -434,6 +434,9 @@ func (g *Griddler) checkLineAlgo1(l *Line) bool {
 		if !g.checkClueAlgo1(cb, false) {
 			return false
 		}
+		if cb.isDone {
+			continue
+		}
 		break
 	}
 
@@ -447,6 +450,9 @@ func (g *Griddler) checkLineAlgo1(l *Line) bool {
 		fmt.Printf("\nClue(n:%d,b:%d,e:%d,l:%d):", cb.index+1, cb.begin+1, cb.end+1, cb.length)
 		if !g.checkClueAlgo1(cb, true) {
 			return false
+		}
+		if cb.isDone {
+			continue
 		}
 		break
 	}
