@@ -9,11 +9,13 @@ import (
 	"strings"
 )
 
+// utility function to pause and wait for the user to press enter
 func Pause() {
 	var b []byte = make([]byte, 2)
 	os.Stdin.Read(b)
 }
 
+// Square is the basic element of the grid
 type Square struct {
 	x, y int
 	val  int
@@ -29,6 +31,7 @@ func NewSquare(x, y, v int, g *Griddler) *Square {
 	}
 }
 
+<<<<<<< .mine
 func (s *Square) setValue(val int) {
 	if s.val == 0 {
 		s.val = val
@@ -45,6 +48,24 @@ func (s *Square) setValue(val int) {
 	}
 }
 
+=======
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+>>>>>>> .theirs
 func (s Square) show() {
 	//fmt.Printf("(%d,%d,", s.x, s.y)
 	switch s.val {
@@ -298,6 +319,22 @@ func (g *Griddler) Load(filename string) error {
 	return nil
 }
 
+func (g *Griddler) setValue(s *Square, val int) {
+	if s.val == 0 {
+		s.val = val
+		s.g.s.push(s)
+		if val != 1 {
+			s.g.lines[s.x].incrementClues()
+			s.g.columns[s.y].incrementClues()
+		}
+		s.g.lines[s.x].increment()
+		s.g.columns[s.y].increment()
+		fmt.Printf("FOUND (%d,%d)\n", s.x+1, s.y+1)
+		s.g.Show()
+		Pause()
+	}
+}
+
 func (g *Griddler) Show() {
 	for i := 0; i < g.height+2; i++ {
 		if i == 0 || i == g.height+1 {
@@ -361,11 +398,11 @@ func (g *Griddler) solveInitLine(line *Line) {
 	switch {
 	case line.total == 0:
 		for _, s := range line.squares {
-			s.setValue(1)
+			g.setValue(s, 1)
 		}
 	case line.total == g.width:
 		for _, s := range line.squares {
-			s.setValue(2)
+			g.setValue(s, 2)
 		}
 	default:
 		for i, clue := range line.clues {
@@ -382,7 +419,7 @@ func (g *Griddler) solveInitLine(line *Line) {
 			diff := clue.begin + clue.length - (clue.end + 1 - clue.length)
 			if diff > 0 {
 				for j := 0; j < diff; j++ {
-					line.squares[clue.end-clue.length+1+j].setValue(2)
+					g.setValue(line.squares[clue.end-clue.length+1+j], 2)
 				}
 			}
 		}
@@ -397,14 +434,14 @@ func (g *Griddler) checkLine(l *Line) bool {
 	// if we found all clues, we can blank all remaining square
 	if l.sumClues == l.total {
 		for _, s := range l.squares {
-			s.setValue(1)
+			g.setValue(s, 1)
 		}
 		return true
 	}
 	// if the remaining squares are clues, we can set them
 	if (l.length - l.sum) == (l.total - l.sumClues) {
 		for _, s := range l.squares {
-			s.setValue(2)
+			g.setValue(s, 2)
 		}
 		return true
 	}
@@ -477,18 +514,18 @@ func (g *Griddler) checkClueAlgo1(c *Clue, reverse bool) bool {
 				for j := 0; j < c.length-(filled+empty); j++ {
 					fmt.Printf("Filling with empty:%d, filled:%d length:%d", empty, filled, c.length)
 					if reverse {
-						l.squares[i-j].setValue(2)
+						g.setValue(l.squares[i-j], 2)
 					} else {
-						l.squares[i+j].setValue(2)
+						g.setValue(l.squares[i+j], 2)
 					}
 				}
 				// we can potentially end with a blank square if it was the first empty
 				if empty == 0 {
 					fmt.Printf("Filling ended with a blank")
 					if reverse {
-						l.squares[i-c.length+filled].setValue(1)
+						g.setValue(l.squares[i-c.length+filled], 1)
 					} else {
-						l.squares[i+c.length-filled].setValue(1)
+						g.setValue(l.squares[i+c.length-filled], 1)
 					}
 					c.isDone = true
 					return true
@@ -506,19 +543,19 @@ func (g *Griddler) checkClueAlgo1(c *Clue, reverse bool) bool {
 				case filled < c.length:
 					for j := 0; j < c.length; j++ {
 						if reverse {
-							l.squares[i+1+j].setValue(2)
+							g.setValue(l.squares[i+1+j], 2)
 						} else {
-							l.squares[i-1-j].setValue(2)
+							g.setValue(l.squares[i-1-j], 2)
 						}
 					}
 					// ending with a blank if we don't reach the border
 					if reverse {
 						if i+1+c.length < l.length {
-							l.squares[i+c.length+1].setValue(1)
+							g.setValue(l.squares[i+c.length+1], 1)
 						}
 					} else {
 						if i-1-c.length > 0 {
-							l.squares[i-c.length-1].setValue(1)
+							g.setValue(l.squares[i-c.length-1], 1)
 						}
 					}
 					c.isDone = true
@@ -538,9 +575,9 @@ func (g *Griddler) checkClueAlgo1(c *Clue, reverse bool) bool {
 				if empty < c.length {
 					for j := 0; j < empty; j++ {
 						if reverse {
-							l.squares[i+1+j].setValue(1)
+							g.setValue(l.squares[i+1+j], 1)
 						} else {
-							l.squares[i-1-j].setValue(1)
+							g.setValue(l.squares[i-1-j], 1)
 						}
 					}
 				}
@@ -554,14 +591,14 @@ func (g *Griddler) checkClueAlgo1(c *Clue, reverse bool) bool {
 			// here we found it all, we can blank the beginning and the end
 			case filled == c.length:
 				if reverse {
-					l.squares[i-1].setValue(1)
+					g.setValue(l.squares[i-1], 1)
 					if i < c.end-c.length {
-						l.squares[i+c.length].setValue(1)
+						g.setValue(l.squares[i+c.length], 1)
 					}
 				} else {
-					l.squares[i+1].setValue(1)
+					g.setValue(l.squares[i+1], 1)
 					if i > c.begin+c.length {
-						l.squares[i-c.length].setValue(1)
+						g.setValue(l.squares[i-c.length], 1)
 					}
 				}
 				c.isDone = true
