@@ -109,7 +109,7 @@ func (l *Line) incrementClues() {
 
 func (l *Line) incrementCluesBegin(index, n int) {
 	for i, c := range l.clues {
-		if i > index {
+		if i >= index {
 			c.begin += n
 		}
 	}
@@ -117,7 +117,7 @@ func (l *Line) incrementCluesBegin(index, n int) {
 
 func (l *Line) decrementCluesEnd(index, n int) {
 	for i, c := range l.clues {
-		if i < index {
+		if i <= index {
 			c.end -= n
 		}
 	}
@@ -473,12 +473,13 @@ func (g *Griddler) checkClueAlgo1(c *Clue, reverse bool) bool {
 	emptyBefore := 0
 	emptyAfter := 0
 	filled := 0
+	filledAfter := 0
 	l := c.l
 	i := c.begin
 	if reverse {
 		i = c.end
 	}
-	fmt.Printf("Algo 1:")
+	fmt.Printf("\nAlgo 1:")
 	for {
 		switch {
 		case l.squares[i].val == 0:
@@ -495,6 +496,10 @@ func (g *Griddler) checkClueAlgo1(c *Clue, reverse bool) bool {
 					fmt.Printf("Filling ended with a blank")
 					g.setValue(l.squares[i], 1)
 					c.isDone = true
+					return true
+				}
+				// we cannot predict anything if we are after a second filled
+				if filledAfter > 0 {
 					return true
 				}
 				// we increment the blank after and exit if necessary
@@ -532,8 +537,8 @@ func (g *Griddler) checkClueAlgo1(c *Clue, reverse bool) bool {
 							}
 						}
 						c.isDone = true
-						return true
 					}
+					return true
 				} else {
 					return true
 				}
@@ -554,52 +559,70 @@ func (g *Griddler) checkClueAlgo1(c *Clue, reverse bool) bool {
 			}
 			if reverse {
 				l.decrementCluesEnd(c.index, emptyBefore+1)
+				fmt.Printf("\nNewClue(564)(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
 			} else {
 				l.incrementCluesBegin(c.index, emptyBefore+1)
+				fmt.Printf("\nNewClue(567)(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
 			}
+			emptyBefore = 0
 		case l.squares[i].val == 2:
 			fmt.Printf("(%d,%d,X)", l.squares[i].x+1, l.squares[i].y+1)
-			filled++
-			switch {
-			// nothing to do we continue
-			case filled < c.length:
-				// if we joined existing checked square (e.g ..XX.X)
-				if filled+emptyBefore > c.length {
+			if emptyAfter == 0 {
+				filled++
+				switch {
+				case filled < c.length:
+					// if we joined existing checked square (e.g ..XX.X)
+					if filled+emptyBefore > c.length {
+						if reverse {
+							g.setValue(l.squares[i+c.length], 1)
+							l.decrementCluesEnd(c.index, 1)
+							fmt.Printf("\nNewClue(578)(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
+						} else {
+							g.setValue(l.squares[i-c.length], 1)
+							l.incrementCluesBegin(c.index, 1)
+							fmt.Printf("\nNewClue(581)(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
+						}
+					}
+				// here we found it all, we can blank the beginning and the end
+				case filled == c.length:
 					if reverse {
-						g.setValue(l.squares[i+c.length], 1)
-						l.decrementCluesEnd(c.index, 1)
+						g.setValue(l.squares[i-1], 1)
+						if i < c.end-c.length {
+							g.setValue(l.squares[i+c.length], 1)
+						}
 					} else {
-						g.setValue(l.squares[i-c.length], 1)
-						l.incrementCluesBegin(c.index, 1)
+						g.setValue(l.squares[i+1], 1)
+						if i > c.begin+c.length {
+							g.setValue(l.squares[i-c.length], 1)
+						}
+					}
+					c.isDone = true
+				case filled > c.length:
+					fmt.Println("WWAARRNNIINNGG: filled > c.length")
+					return false
+				}
+			} else {
+				filledAfter++
+				if filled+emptyAfter+filledAfter > c.length {
+					// we can attempt to fill backward
+					for j := emptyAfter; j < c.length; j++ {
+						if reverse {
+							g.setValue(l.squares[i+filledAfter+j], 2)
+						} else {
+							g.setValue(l.squares[i-filledAfter-j], 2)
+						}
 					}
 				}
-			// here we found it all, we can blank the beginning and the end
-			case filled == c.length:
-				if reverse {
-					g.setValue(l.squares[i-1], 1)
-					if i < c.end-c.length {
-						g.setValue(l.squares[i+c.length], 1)
-					}
-				} else {
-					g.setValue(l.squares[i+1], 1)
-					if i > c.begin+c.length {
-						g.setValue(l.squares[i-c.length], 1)
-					}
-				}
-				c.isDone = true
-			case filled > c.length:
-				fmt.Println("WWAARRNNIINNGG: filled > c.length 2")
-				return false
 			}
 		}
 		if reverse {
 			i--
-			if i < c.begin {
+			if i < c.begin+1 || i < 0 {
 				return true
 			}
 		} else {
 			i++
-			if i > c.end {
+			if i > c.end+1 || i > l.length-1 {
 				return true
 			}
 		}
@@ -631,19 +654,21 @@ func (g *Griddler) checkClueAlgo2(c *Clue, reverse bool) bool {
 	if reverse {
 		i = c.end
 	}
-	fmt.Printf("Algo 2:")
+	fmt.Printf("\nAlgo 2:")
 	for {
 		switch {
 		case l.squares[i].val == 0:
-			fmt.Printf("(%d,%d).", l.squares[i].x+1, l.squares[i].y+1)
+			fmt.Printf("(%d,%d) ", l.squares[i].x+1, l.squares[i].y+1)
 			empty++
 		case l.squares[i].val == 1:
-			fmt.Printf("(%d,%d)0", l.squares[i].x+1, l.squares[i].y+1)
+			fmt.Printf("(%d,%d).", l.squares[i].x+1, l.squares[i].y+1)
 			if (empty + filled) < c.length {
 				if reverse {
 					l.decrementCluesEnd(c.index, empty+filled)
+					fmt.Printf("\nNewClue(664)(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
 				} else {
 					l.incrementCluesBegin(c.index, empty+filled)
+					fmt.Printf("\nNewClue(667)(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
 				}
 			}
 		case l.squares[i].val == 2:
