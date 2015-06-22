@@ -8,7 +8,6 @@ import (
 type Square struct {
 	x, y int
 	val  int
-	g    *Griddler
 }
 
 func NewSquare(x, y, v int, g *Griddler) *Square {
@@ -16,7 +15,6 @@ func NewSquare(x, y, v int, g *Griddler) *Square {
 		x:   x,
 		y:   y,
 		val: v,
-		g:   g,
 	}
 }
 
@@ -31,19 +29,4 @@ func (s Square) show() {
 		fmt.Printf("X")
 	}
 	//fmt.Printf(")")
-}
-
-type Stack [](*Square)
-
-func (st *Stack) push(sq *Square) {
-	*st = append(*st, sq)
-}
-
-func (s *Stack) pop() *Square {
-	if len(*s) == 0 {
-		return nil
-	}
-	ret := (*s)[len(*s)-1]
-	*s = (*s)[0 : len(*s)-1]
-	return ret
 }
