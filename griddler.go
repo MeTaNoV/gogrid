@@ -650,8 +650,8 @@ func (g *Griddler) checkLineAlgo4(l *Line) bool {
 		if l.checkMapping(rsg) {
 			for i, c := range l.clues[l.cb : l.ce+1] {
 				fmt.Printf("\nClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
-				fmt.Printf("\nRange(b:%d,e:%d):", rsg[i].min, rsg[i].max)
-				g.checkClueAlgo4(c, rsg)
+				fmt.Printf("\nRange(b:%d,e:%d):", rsg[i].min+1, rsg[i].max+1)
+				g.checkClueAlgo4(c, i, rsg)
 			}
 		}
 	}
@@ -659,36 +659,36 @@ func (g *Griddler) checkLineAlgo4(l *Line) bool {
 	return true
 }
 
-func (g *Griddler) checkClueAlgo4(c *Clue, r [](*Range)) bool {
+func (g *Griddler) checkClueAlgo4(c *Clue, ri int, r [](*Range)) bool {
 	fmt.Printf("\nAlgo 4:")
 
 	// if first, blank up to potential beginning of clue
 	if c.index == c.l.cb {
-		for i := c.begin; i < r[c.index-c.l.cb].max-c.length+1; i++ {
+		for i := 0; i < r[ri].max-c.length+1; i++ {
 			g.setValue(c.l.squares[i], 1)
 		}
-		c.l.incrementCluesBegin(c.index, r[c.index-c.l.cb].max-c.length+1-c.begin)
+		c.l.incrementCluesBegin(c.index, r[ri].max-c.length+1-c.begin)
 		fmt.Printf("\nNewClue(A4b)(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
 	}
 	// take into account left neighbour
 	if c.index > c.l.cb {
-		for i := r[c.index-c.l.cb].max - c.length; i > r[c.index-c.l.cb-1].max+c.l.clues[c.index-1].length; i-- {
+		for i := r[ri].max - c.length; i > r[ri-1].max+c.l.clues[c.index-1].length; i-- {
 			g.setValue(c.l.squares[i], 1)
 		}
 	}
 	// take into account right neighbour
 	if c.index < c.l.ce {
-		for i := r[c.index-c.l.cb].min + c.length; i < r[c.index-c.l.cb+1].min-c.l.clues[c.index+1].length; i++ {
+		for i := r[ri].min + c.length; i < r[ri+1].min-c.l.clues[c.index+1].length; i++ {
 			g.setValue(c.l.squares[i], 1)
 		}
 	}
 
 	// if last, blank down to potential ending of clue
 	if c.index == c.l.ce {
-		for i := c.end; i > r[c.index-c.l.cb].min+c.length-1; i-- {
+		for i := c.l.length - 1; i > r[ri].min+c.length-1; i-- {
 			g.setValue(c.l.squares[i], 1)
 		}
-		c.l.decrementCluesEnd(c.index, c.end-r[c.index-c.l.cb].min-c.length+1)
+		c.l.decrementCluesEnd(c.index, c.end-r[ri].min-c.length+1)
 		fmt.Printf("\nNewClue(A4e)(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
 	}
 
@@ -775,3 +775,10 @@ func (g *Griddler) checkClueAlgo5(c *Clue, r [](*Range)) bool {
 	fmt.Printf("\nAlgo 5:")
 	return true
 }
+
+// TODO: similar to algo 5, check empty surrounded by blank that does not fit any clue in size
+// verify that it is not already covered by algo 2..., or somehow badly implemented
+// TODO: find a general use-case to be able to solve this pattern:
+// .....X..0.0..... with (2,2,...)
+// TODO: find a general use-case to be able to solve this pattern:
+// ......XX.X00.000 with (4,1)
