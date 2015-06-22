@@ -605,8 +605,9 @@ func (g *Griddler) checkLineAlgo3(l *Line) bool {
 			g.setValue(l.squares[r.min-1], 1)
 			g.setValue(l.squares[r.max+1], 1)
 
-			// if it is at the beginning or end, we can blank more
-			for _, c := range cs {
+			// if we found only one candidate, if it is at the beginning or end, we can blank more
+			if len(cs) == 1 {
+				c := cs[0]
 				if c.index == l.cb {
 					for i := 0; i < r.min-1; i++ {
 						g.setValue(c.l.squares[i], 1)
