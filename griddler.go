@@ -185,12 +185,12 @@ func (g *Griddler) Solve() {
 	c := g.cStack.pop()
 	for l != nil || c != nil {
 		if l != nil && !l.isDone {
-			fmt.Printf("\n=================== checking line %d ===================\n", l.index)
+			fmt.Printf("\n=================== checking line %d ===================\n", l.index+1)
 			Pause()
 			g.checkLine(l)
 		}
 		if c != nil && !c.isDone {
-			fmt.Printf("\n=================== checking column %d ===================\n", c.index)
+			fmt.Printf("\n=================== checking column %d ===================\n", c.index+1)
 			Pause()
 			g.checkLine(c)
 		}
