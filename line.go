@@ -6,6 +6,7 @@ import (
 
 type Line struct {
 	g          *Griddler
+	index      int
 	length     int
 	clues      [](*Clue)
 	squares    [](*Square)
@@ -16,9 +17,30 @@ type Line struct {
 	isDone     bool
 }
 
-func NewLine(g *Griddler, length int) *Line {
+type Stack [](*Line)
+
+func (st *Stack) push(nl *Line) {
+	for _, l := range *st {
+		if l == nl {
+			return
+		}
+	}
+	*st = append(*st, nl)
+}
+
+func (st *Stack) pop() *Line {
+	if len(*st) == 0 {
+		return nil
+	}
+	ret := (*st)[len(*st)-1]
+	*st = (*st)[0 : len(*st)-1]
+	return ret
+}
+
+func NewLine(g *Griddler, index, length int) *Line {
 	return &Line{
 		g:          g,
+		index:      index,
 		length:     length,
 		squares:    make([](*Square), length),
 		sumBlanks:  0,
@@ -99,7 +121,7 @@ func (l *Line) updateCluesIndexes(c *Clue, reverse bool) {
 		}
 	}
 	fmt.Printf("Line clue range: cb:%d, ce:%d\n", l.cb, l.ce)
-	Pause()
+	//Pause()
 }
 
 func (l *Line) updateCluesRanges(c *Clue, length int, reverse bool) {

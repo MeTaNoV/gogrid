@@ -15,7 +15,8 @@ type Griddler struct {
 	columns        [](*Line)
 	sumSolvedLines int
 	isDone         bool
-	s              *Stack
+	lStack         Stack
+	cStack         Stack
 	solveQueue     chan (*Square)
 }
 
@@ -23,7 +24,8 @@ func NewGriddler() *Griddler {
 	g := &Griddler{
 		sumSolvedLines: 0,
 		isDone:         false,
-		s:              &Stack{},
+		lStack:         Stack{},
+		cStack:         Stack{},
 	}
 	return g
 }
@@ -38,14 +40,14 @@ func (g *Griddler) error(e error, l int) error {
 func (g *Griddler) initBoard() {
 	g.lines = make([](*Line), g.height)
 	for i := 0; i < g.height; i++ {
-		g.lines[i] = NewLine(g, g.width)
+		g.lines[i] = NewLine(g, i, g.width)
 		for j := 0; j < g.width; j++ {
 			g.lines[i].squares[j] = NewSquare(i, j, 0, g)
 		}
 	}
 	g.columns = make([](*Line), g.width)
 	for i := 0; i < g.width; i++ {
-		g.columns[i] = NewLine(g, g.height)
+		g.columns[i] = NewLine(g, i, g.height)
 		for j := 0; j < g.height; j++ {
 			g.columns[i].squares[j] = g.lines[j].squares[i]
 		}
@@ -135,17 +137,18 @@ func (g *Griddler) Load(filename string) error {
 func (g *Griddler) setValue(s *Square, val int) {
 	if s.val == 0 {
 		s.val = val
-		s.g.s.push(s)
-		if val != 1 {
-			s.g.lines[s.x].incrementClues()
-			s.g.columns[s.y].incrementClues()
+		g.lStack.push(g.lines[s.x])
+		g.cStack.push(g.columns[s.y])
+		if val == 2 {
+			g.lines[s.x].incrementClues()
+			g.columns[s.y].incrementClues()
 		} else {
-			s.g.lines[s.x].incrementBlanks()
-			s.g.columns[s.y].incrementBlanks()
+			g.lines[s.x].incrementBlanks()
+			g.columns[s.y].incrementBlanks()
 		}
 		fmt.Printf("FOUND (%d,%d)\n", s.x+1, s.y+1)
 		g.solveQueue <- s
-		s.g.Show()
+		g.Show()
 		//Pause()
 	}
 }
@@ -178,15 +181,21 @@ func (g *Griddler) Show() {
 
 func (g *Griddler) Solve() {
 	g.solveInit()
-	s := g.s.pop()
-	for s != nil {
-		fmt.Printf("\n=================== checking line %d ===================\n", s.x+1)
-		//Pause()
-		g.checkLine(s.g.lines[s.x])
-		fmt.Printf("\n=================== checking column %d ===================\n", s.y+1)
-		//Pause()
-		g.checkLine(s.g.columns[s.y])
-		s = g.s.pop()
+	l := g.lStack.pop()
+	c := g.cStack.pop()
+	for l != nil || c != nil {
+		if l != nil {
+			fmt.Printf("\n=================== checking line %d ===================\n", l.index)
+			//Pause()
+			g.checkLine(l)
+		}
+		if c != nil {
+			fmt.Printf("\n=================== checking column %d ===================\n", c.index)
+			//Pause()
+			g.checkLine(c)
+		}
+		l = g.lStack.pop()
+		c = g.cStack.pop()
 	}
 	if g.isDone {
 		fmt.Println("Griddler completed!!!")
