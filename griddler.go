@@ -186,12 +186,12 @@ func (g *Griddler) Solve() {
 	for l != nil || c != nil {
 		if l != nil && !l.isDone {
 			fmt.Printf("\n=================== checking line %d ===================\n", l.index+1)
-			Pause()
+			//Pause()
 			g.checkLine(l)
 		}
 		if c != nil && !c.isDone {
 			fmt.Printf("\n=================== checking column %d ===================\n", c.index+1)
-			Pause()
+			//Pause()
 			g.checkLine(c)
 		}
 		l = g.lStack.pop()
@@ -245,6 +245,7 @@ func (g *Griddler) solveInitLine(line *Line) {
 	}
 }
 
+// TODO refactor with a function table
 func (g *Griddler) checkLine(l *Line) bool {
 	// if we found all clues, we can blank all remaining square
 	if l.sumClues == l.totalClues {
@@ -289,10 +290,20 @@ func (g *Griddler) checkLine(l *Line) bool {
 			return false
 		}
 	}
+
 	// algo 5, check finished ranged and try to find the corresponding clue from beginning or end to fill some blank
 	// e.g. ....0X0...0X0....X.X... for a (1,1,4) clue list will enable to blank the first 4 square
 	if !l.isDone {
 		res = g.checkLineAlgo5(l)
+		if !res {
+			return false
+		}
+	}
+
+	// Algo 6: find a general use-case to be able to solve this pattern:
+	// .....X..0.0..... with (2,2,...)
+	if !l.isDone {
+		res = g.checkLineAlgo6(l)
 		if !res {
 			return false
 		}
@@ -332,6 +343,7 @@ func (g *Griddler) checkLineAlgo1(l *Line) bool {
 	return true
 }
 
+// TODO refactor if possible...
 func (g *Griddler) checkClueAlgo1(c *Clue, reverse bool) bool {
 	emptyBefore, emptyAfter := 0, 0
 	filledBefore, filledAfter := 0, 0
@@ -530,16 +542,24 @@ func (g *Griddler) checkLineAlgo2(l *Line) bool {
 			continue
 		}
 		fmt.Println("\nA2 From beginning:")
-		fmt.Printf("\nClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
+		fmt.Printf("Clue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
 		if !g.checkClueAlgo2(c, false) {
 			return false
 		}
 		fmt.Println("\nA2 From end:")
-		fmt.Printf("\nClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
+		fmt.Printf("Clue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
 		if !g.checkClueAlgo2(c, true) {
 			return false
 		}
+		fmt.Println("\nSolve Overlap:")
 		c.solveOverlap()
+		// if first or last clue, we can run algo 1 to check if done
+		if c.index == l.cb {
+			g.checkClueAlgo1(c, false)
+		}
+		if c.index == l.ce {
+			g.checkClueAlgo1(c, true)
+		}
 	}
 	return true
 }
@@ -607,7 +627,7 @@ func (g *Griddler) checkLineAlgo3(l *Line) bool {
 					fmt.Printf("\nClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
 					cs = append(cs, c)
 				case c.length > r.length():
-					fmt.Printf("\nCancelling...Clue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
+					fmt.Printf("\nCanceling...Clue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
 					return true
 				}
 			}
@@ -645,9 +665,9 @@ func (g *Griddler) checkLineAlgo4(l *Line) bool {
 	rsg := l.filledGroups()
 
 	if len(rsg) > l.ce-l.cb {
-		fmt.Println("\nA4 Checking filled group mapping:")
+		fmt.Println("\nA4 Checking filled group 1-1 mapping:")
 
-		if l.checkMapping(rsg) {
+		if l.check1to1Mapping(rsg) {
 			for i, c := range l.clues[l.cb : l.ce+1] {
 				fmt.Printf("\nClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
 				fmt.Printf("\nRange(b:%d,e:%d):", rsg[i].min+1, rsg[i].max+1)
@@ -759,7 +779,7 @@ func (g *Griddler) checkLineAlgo5(l *Line) bool {
 		}
 		// if not found, the first range is the first clue!
 		if !isFound {
-			for i := l.length - 1; i > rsg[len(rsg)-1].max+1; i++ {
+			for i := l.length - 1; i > rsg[len(rsg)-1].max+1; i-- {
 				g.setValue(l.squares[i], 1)
 			}
 			cend.isDone = true
@@ -771,14 +791,77 @@ func (g *Griddler) checkLineAlgo5(l *Line) bool {
 	return true
 }
 
-func (g *Griddler) checkClueAlgo5(c *Clue, r [](*Range)) bool {
-	fmt.Printf("\nAlgo 5:")
+// ......X..0... with (2,2) or ......XX....0.... with (4,4)
+// the goal is to look if a candidate fit in the gap up to a blank
+// // that candidate being the current clue or the next/previous one
+func (g *Griddler) checkLineAlgo6(l *Line) bool {
+	rsg := l.filledGroups()
+
+	for _, r := range rsg {
+		fmt.Println("\nA6 Checking filled/blank constraints:")
+		fmt.Printf("Range(b:%d,e:%d):\n", r.min+1, r.max+1)
+
+		cs := l.getPotentialCluesForRange(r)
+
+		longest := 0
+		isFound, step := l.getStepToNextBlank(r, false)
+		if isFound {
+			isFound = false
+			for _, c := range cs {
+				if c.index < l.ce {
+					next := l.clues[c.index+1]
+					if step <= c.length-r.length() || step > next.length {
+						isFound = true
+						break
+					}
+				}
+				longest = max(longest, c.length-r.length())
+			}
+			//if we didn't find anyone, we can blank taking into account the longest trail
+			if !isFound {
+				fmt.Printf("A6 Forward: step:%d, longest:%d\n", step, longest)
+				for i := longest + 1; i <= step; i++ {
+					g.setValue(l.squares[r.max+i], 1)
+					Pause()
+				}
+			}
+		}
+
+		longest = 0
+		isFound, step = l.getStepToNextBlank(r, true)
+		if isFound {
+			isFound = false
+			// normally, there should be a previous clue available, if not, it would have been found by previous algo
+			for _, c := range cs {
+				if c.index > l.cb {
+					previous := l.clues[c.index-1]
+					if step <= c.length-r.length() || step > previous.length {
+						isFound = true
+						break
+					}
+				}
+				longest = max(longest, c.length-r.length())
+			}
+			//if we didn't find anyone, we can blank taking into account the longest trail
+			if !isFound {
+				fmt.Printf("A6 Backward: step:%d, longest:%d\n", step, longest)
+				for i := longest + 1; i <= step; i++ {
+					g.setValue(l.squares[r.min-i], 1)
+					Pause()
+				}
+			}
+		}
+	}
+
 	return true
 }
 
 // TODO: similar to algo 5, check empty surrounded by blank that does not fit any clue in size
 // verify that it is not already covered by algo 2..., or somehow badly implemented
 // TODO: find a general use-case to be able to solve this pattern:
-// .....X..0.0..... with (2,2,...)
+// .......X0...X0.. with (2,2,...)
 // TODO: find a general use-case to be able to solve this pattern:
 // ......XX.X00.000 with (4,1)
+// TODO: try & error case on the borders, one with the line empty, the other with some clue found
+// TODO: refactor the whole function to benefit from the boolean returned to print the summary of execution for example
+// TODO: evaluate the refactor of the code to be able to use range operator, mostly clues need to be double in reverse
