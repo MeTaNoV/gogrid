@@ -235,12 +235,7 @@ func (g *Griddler) solveInitLine(line *Line) {
 				sumEnd += c.length + 1
 			}
 			clue.end = line.length - 1 - sumEnd
-			diff := clue.begin + clue.length - (clue.end + 1 - clue.length)
-			if diff > 0 {
-				for j := 0; j < diff; j++ {
-					g.setValue(line.squares[clue.end-clue.length+1+j], 2)
-				}
-			}
+			clue.solveOverlap()
 		}
 	}
 }
@@ -316,6 +311,15 @@ func (g *Griddler) checkLine(l *Line) bool {
 	// .......YXX.0.... with (4,5,...)
 	if !l.isDone {
 		res = g.checkLineAlgo7(l)
+		if !res {
+			return false
+		}
+	}
+
+	// Algo 8: check possible border constraints following the pattern:
+	// |..X... -> .0X... (1,Z>1,...) or ...XX... -> ..0XX... with (2,Z>2,...)
+	if !l.isDone {
+		res = g.checkLineAlgo8(l)
 		if !res {
 			return false
 		}
@@ -614,13 +618,11 @@ func (g *Griddler) checkClueAlgo2(c *Clue, reverse bool) bool {
 	}
 }
 
+// algo 3, check the clues with regards to maximal sizes on found squares
 func (g *Griddler) checkLineAlgo3(l *Line) bool {
-	fmt.Println("\nA3 Checking group size:")
-	fmt.Printf("Line clue range: cb:%d, ce:%d\n", l.cb, l.ce)
-	rsg := l.filledGroups()
+	rsg := l.unsolvedGroups()
 
 	for _, r := range rsg {
-		fmt.Printf("Range(b:%d,e:%d):\n", r.min+1, r.max+1)
 
 		cs := l.getPotentialCluesForRange(r)
 		canceled := false
@@ -630,14 +632,17 @@ func (g *Griddler) checkLineAlgo3(l *Line) bool {
 			switch {
 			case c.length < r.length():
 			case c.length == r.length():
-				fmt.Printf("Clue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
+				//fmt.Printf("Clue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
 				cs = append(cs, c)
 			case c.length > r.length():
-				fmt.Printf("Canceling...Clue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
+				//fmt.Printf("Canceling...Clue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
 				canceled = true
 			}
 		}
 		if !canceled && len(cs) > 0 {
+			fmt.Println("\nA3 Checking group size:")
+			fmt.Printf("Line clue range: cb:%d, ce:%d\n", l.cb, l.ce)
+			fmt.Printf("Range(b:%d,e:%d):\n", r.min+1, r.max+1)
 			g.setValue(l.squares[r.min-1], 1)
 			g.setValue(l.squares[r.max+1], 1)
 
@@ -649,7 +654,7 @@ func (g *Griddler) checkLineAlgo3(l *Line) bool {
 						g.setValue(c.l.squares[i], 1)
 					}
 					c.l.incrementCluesBegin(c.index, r.min-c.begin)
-					fmt.Printf("\nNewClue(A3b)(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
+					//fmt.Printf("\nNewClue(A3b)(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
 				}
 
 				if c.index == l.ce {
@@ -657,7 +662,7 @@ func (g *Griddler) checkLineAlgo3(l *Line) bool {
 						g.setValue(c.l.squares[i], 1)
 					}
 					c.l.decrementCluesEnd(c.index, c.end-r.max)
-					fmt.Printf("\nNewClue(A3e)(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
+					//fmt.Printf("\nNewClue(A3e)(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
 				}
 			}
 		}
@@ -667,15 +672,15 @@ func (g *Griddler) checkLineAlgo3(l *Line) bool {
 }
 
 func (g *Griddler) checkLineAlgo4(l *Line) bool {
-	rsg := l.filledGroups()
+	rsg := l.unsolvedGroups()
 
 	if len(rsg) > l.ce-l.cb {
-		fmt.Println("\nA4 Checking filled group 1-1 mapping:")
 
 		if l.check1to1Mapping(rsg) {
+			fmt.Println("\nA4 Checking filled group 1-1 mapping:")
 			for i, c := range l.clues[l.cb : l.ce+1] {
-				fmt.Printf("\nClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
-				fmt.Printf("\nRange(b:%d,e:%d):", rsg[i].min+1, rsg[i].max+1)
+				// fmt.Printf("\nClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
+				// fmt.Printf("\nRange(b:%d,e:%d):", rsg[ri].min+1, rsg[ri].max+1)
 				g.checkClueAlgo4(c, i, rsg)
 			}
 		}
@@ -684,37 +689,35 @@ func (g *Griddler) checkLineAlgo4(l *Line) bool {
 	return true
 }
 
-func (g *Griddler) checkClueAlgo4(c *Clue, ri int, r [](*Range)) bool {
-	fmt.Printf("\nAlgo 4:")
-
+func (g *Griddler) checkClueAlgo4(c *Clue, ri int, rsg [](*Range)) bool {
 	// if first, blank up to potential beginning of clue
 	if c.index == c.l.cb {
-		for i := 0; i < r[ri].max-c.length+1; i++ {
+		for i := 0; i < rsg[ri].max-c.length+1; i++ {
 			g.setValue(c.l.squares[i], 1)
 		}
-		c.l.incrementCluesBegin(c.index, r[ri].max-c.length+1-c.begin)
-		fmt.Printf("\nNewClue(A4b)(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
+		c.l.incrementCluesBegin(c.index, rsg[ri].max-c.length+1-c.begin)
+		//fmt.Printf("\nNewClue(A4b)(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
 	}
 	// take into account left neighbour
 	if c.index > c.l.cb {
-		for i := r[ri].max - c.length; i > r[ri-1].max+c.l.clues[c.index-1].length; i-- {
+		for i := rsg[ri].max - c.length; i > rsg[ri-1].max+c.l.clues[c.index-1].length; i-- {
 			g.setValue(c.l.squares[i], 1)
 		}
 	}
 	// take into account right neighbour
 	if c.index < c.l.ce {
-		for i := r[ri].min + c.length; i < r[ri+1].min-c.l.clues[c.index+1].length; i++ {
+		for i := rsg[ri].min + c.length; i < rsg[ri+1].min-c.l.clues[c.index+1].length; i++ {
 			g.setValue(c.l.squares[i], 1)
 		}
 	}
 
 	// if last, blank down to potential ending of clue
 	if c.index == c.l.ce {
-		for i := c.l.length - 1; i > r[ri].min+c.length-1; i-- {
+		for i := c.l.length - 1; i > rsg[ri].min+c.length-1; i-- {
 			g.setValue(c.l.squares[i], 1)
 		}
-		c.l.decrementCluesEnd(c.index, c.end-r[ri].min-c.length+1)
-		fmt.Printf("\nNewClue(A4e)(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
+		c.l.decrementCluesEnd(c.index, c.end-rsg[ri].min-c.length+1)
+		//fmt.Printf("\nNewClue(A4e)(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
 	}
 
 	return true
@@ -729,13 +732,10 @@ func (g *Griddler) checkLineAlgo5(l *Line) bool {
 		return true
 	}
 
-	fmt.Println("\nA5 Checking solved group mapping:")
-
 	// we want to map the solved group to clues and see if the first or last clue are among those for all possible mapping
 	// if this is the case, we can blank and resolve those!
 	// to verify that, we only have to check that the first/last clue is in the first/last range available
 	// and that no other mapping is possible, i.e. if we find another mapping, it fails
-	fmt.Println("\nA5 From beginning:")
 	cbeg := l.clues[l.cb]
 	// if the first clue contains the first range, we can proceed further
 	if cbeg.begin <= rsg[0].min && cbeg.end >= rsg[0].max && cbeg.length == rsg[0].length() {
@@ -754,6 +754,9 @@ func (g *Griddler) checkLineAlgo5(l *Line) bool {
 		}
 		// if not found, the first range is the first clue!
 		if !isFound {
+			fmt.Println("A5 Checking solved group mapping:")
+			fmt.Println("A5 From beginning:")
+
 			for i := 0; i < rsg[0].min-1; i++ {
 				g.setValue(l.squares[i], 1)
 			}
@@ -763,7 +766,6 @@ func (g *Griddler) checkLineAlgo5(l *Line) bool {
 		}
 	}
 
-	fmt.Println("\nA5 From end:")
 	cend := l.clues[l.ce]
 	// if the last clue contains the last range, we can proceed further
 	if cend.begin <= rsg[len(rsg)-1].min && cend.end >= rsg[len(rsg)-1].max && cend.length == rsg[len(rsg)-1].length() {
@@ -784,6 +786,8 @@ func (g *Griddler) checkLineAlgo5(l *Line) bool {
 		}
 		// if not found, the first range is the first clue!
 		if !isFound {
+			fmt.Println("A5 Checking solved group mapping:")
+			fmt.Println("A5 From end:")
 			for i := l.length - 1; i > rsg[len(rsg)-1].max+1; i-- {
 				g.setValue(l.squares[i], 1)
 			}
@@ -801,12 +805,9 @@ func (g *Griddler) checkLineAlgo5(l *Line) bool {
 // that candidate being the current clue or the next/previous one
 // and if we don't find one, we can blank
 func (g *Griddler) checkLineAlgo6(l *Line) bool {
-	rsg := l.filledGroups()
+	rsg := l.unsolvedGroups()
 
 	for _, r := range rsg {
-		fmt.Println("\nA6 Checking filled/blank constraints:")
-		fmt.Printf("Range(b:%d,e:%d):\n", r.min+1, r.max+1)
-
 		cs := l.getPotentialCluesForRange(r)
 
 		longest := 0
@@ -824,11 +825,13 @@ func (g *Griddler) checkLineAlgo6(l *Line) bool {
 				longest = max(longest, c.length-r.length())
 			}
 			//if we didn't find anyone, we can blank taking into account the longest trail
-			if !isFound {
+			if len(cs) > 1 && !isFound {
+				fmt.Println("\nA6 Checking filled/blank constraints:")
+				fmt.Printf("Range(b:%d,e:%d):\n", r.min+1, r.max+1)
 				fmt.Printf("A6 Forward: step:%d, longest:%d\n", step, longest)
 				for i := longest + 1; i <= step; i++ {
 					g.setValue(l.squares[r.max+i], 1)
-					Pause()
+					//Pause()
 				}
 			}
 		}
@@ -848,11 +851,13 @@ func (g *Griddler) checkLineAlgo6(l *Line) bool {
 				longest = max(longest, c.length-r.length())
 			}
 			//if we didn't find anyone, we can blank taking into account the longest trail
-			if !isFound {
+			if len(cs) > 1 && !isFound {
+				fmt.Println("\nA6 Checking filled/blank constraints:")
+				fmt.Printf("Range(b:%d,e:%d):\n", r.min+1, r.max+1)
 				fmt.Printf("A6 Backward: step:%d, longest:%d\n", step, longest)
 				for i := longest + 1; i <= step; i++ {
 					g.setValue(l.squares[r.min-i], 1)
-					Pause()
+					//Pause()
 				}
 			}
 		}
@@ -867,11 +872,9 @@ func (g *Griddler) checkLineAlgo6(l *Line) bool {
 // i.e. if we find one that is currently the size or smaller that range size plus the gap, we can't do anything
 // if not we take the shortest we found to do the fill
 func (g *Griddler) checkLineAlgo7(l *Line) bool {
-	rsg := l.filledGroups()
+	rsg := l.unsolvedGroups()
 
 	for _, r := range rsg {
-		fmt.Println("\nA7 Checking filled/size constraints:")
-		fmt.Printf("Range(b:%d,e:%d):\n", r.min+1, r.max+1)
 		cs := l.getPotentialCluesForRange(r)
 
 		shortest := l.length
@@ -880,7 +883,7 @@ func (g *Griddler) checkLineAlgo7(l *Line) bool {
 			isFound = false
 			for _, c := range cs {
 				if c.length <= step+r.length() {
-					fmt.Printf("Canceling... Clue(n:%d,b:%d,e:%d,l:%d)\n", c.index+1, c.begin+1, c.end+1, c.length)
+					//fmt.Printf("Canceling... Clue(n:%d,b:%d,e:%d,l:%d)\n", c.index+1, c.begin+1, c.end+1, c.length)
 					isFound = true
 					break
 				}
@@ -893,7 +896,7 @@ func (g *Griddler) checkLineAlgo7(l *Line) bool {
 				fmt.Printf("A7 Backward fill: step:%d, shortest:%d\n", step, shortest)
 				for i := 0; i < shortest; i++ {
 					g.setValue(l.squares[r.min-i-1], 2)
-					Pause()
+					//Pause()
 				}
 			}
 		}
@@ -904,7 +907,7 @@ func (g *Griddler) checkLineAlgo7(l *Line) bool {
 			isFound = false
 			for _, c := range cs {
 				if c.length <= step+r.length() {
-					fmt.Printf("Canceling... Clue(n:%d,b:%d,e:%d,l:%d)\n", c.index+1, c.begin+1, c.end+1, c.length)
+					//fmt.Printf("Canceling... Clue(n:%d,b:%d,e:%d,l:%d)\n", c.index+1, c.begin+1, c.end+1, c.length)
 					isFound = true
 					break
 				}
@@ -914,13 +917,37 @@ func (g *Griddler) checkLineAlgo7(l *Line) bool {
 			if !isFound {
 				fmt.Println("\nA7 Checking filled/size constraints:")
 				fmt.Printf("Range(b:%d,e:%d):\n", r.min+1, r.max+1)
-				fmt.Printf("A6 Forward: step:%d, shortest:%d\n", step, shortest)
+				fmt.Printf("A7 Forward: step:%d, shortest:%d\n", step, shortest)
 				for i := 0; i < shortest; i++ {
 					g.setValue(l.squares[r.max+i+1], 2)
-					Pause()
+					//Pause()
 				}
 			}
 		}
+	}
+
+	return true
+}
+
+// Algo 8: check possible border constraints following the pattern:
+// |..X... -> .0X... (1,Z>1,...) or ...XX... -> ..0XX... with (2,Z>2,...)
+func (g *Griddler) checkLineAlgo8(l *Line) bool {
+	// From the beginning
+	cb := l.clues[l.cb]
+	if l.checkRange(2, cb.begin+cb.length+1, cb.begin+2*cb.length) {
+		fmt.Println("\nA8 Checking border min size constraints:")
+		fmt.Println("\nA8 Found at the beginning!")
+		g.setValue(l.squares[cb.begin+cb.length], 1)
+		Pause()
+	}
+
+	// From the end
+	ce := l.clues[l.ce]
+	if l.checkRange(2, ce.end-2*ce.length, ce.end-ce.length-1) {
+		fmt.Println("\nA8 Checking border min size constraints:")
+		fmt.Println("\nA8 Found at the end!")
+		g.setValue(l.squares[ce.end-ce.length], 1)
+		Pause()
 	}
 
 	return true
@@ -931,5 +958,6 @@ func (g *Griddler) checkLineAlgo7(l *Line) bool {
 // TODO: find a general use-case to be able to solve this pattern:
 // ......XX.X00.000 with (4,1) -> we can blank the beginning
 // TODO: try & error case on the borders, one with the line empty, the other with some clue found
-// TODO: refactor the whole function to benefit from the boolean returned to print the summary of execution for example
+// TODO: refactor the whole function to suppress from the boolean returned to print the summary of execution for example,
+// exception in setValue() will be used to check a bad line solving during trial&error
 // TODO: evaluate the refactor of the code to be able to use range operator, mostly clues need to be double in reverse

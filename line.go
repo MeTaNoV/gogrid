@@ -64,6 +64,7 @@ func (l *Line) addClues(cs [](*Clue)) {
 func (l *Line) incrementBlanks() {
 	l.sumBlanks++
 	if (l.sumBlanks+l.sumClues) == l.length && !l.isDone {
+		fmt.Printf("Line/Column %d solved!!!\n", l.index+1)
 		l.isDone = true
 		l.g.incrementSolvedLines()
 	}
@@ -72,6 +73,7 @@ func (l *Line) incrementBlanks() {
 func (l *Line) incrementClues() {
 	l.sumClues++
 	if (l.sumBlanks+l.sumClues) == l.length && !l.isDone {
+		fmt.Printf("Line/Column %d solved!!!\n", l.index+1)
 		l.isDone = true
 		l.g.incrementSolvedLines()
 	}
@@ -110,7 +112,6 @@ func (l *Line) decrementCluesEnd(index, n int) {
 }
 
 func (l *Line) updateCluesIndexes(c *Clue, reverse bool) {
-	fmt.Printf("Line clue range: cb:%d, ce:%d\n", l.cb, l.ce)
 	if reverse {
 		if c.index > l.cb {
 			l.ce--
@@ -120,36 +121,47 @@ func (l *Line) updateCluesIndexes(c *Clue, reverse bool) {
 			l.cb++
 		}
 	}
-	fmt.Printf("Line clue range: cb:%d, ce:%d\n", l.cb, l.ce)
-	//Pause()
 }
 
 func (l *Line) updateCluesRanges(c *Clue, length int, reverse bool) {
 	if reverse {
 		l.decrementCluesEnd(c.index, length)
-		fmt.Printf("\nNewClue(n:%d,b:%d,e:%d,l:%d):\n", c.index+1, c.begin+1, c.end+1, c.length)
 	} else {
 		l.incrementCluesBegin(c.index, length)
-		fmt.Printf("\nNewClue(n:%d,b:%d,e:%d,l:%d):\n", c.index+1, c.begin+1, c.end+1, c.length)
 	}
 }
 
-func (l *Line) filledGroups() [](*Range) {
+func (l *Line) checkRange(value int, min, max int) bool {
+	if min < 0 || max >= l.length {
+		return false
+	}
+	for i := min; i <= max; i++ {
+		if l.squares[i].val != value {
+			return false
+		}
+	}
+	return true
+}
+
+func (l *Line) unsolvedGroups() [](*Range) {
 	lastVal := 0
 	min, max := 0, 0
 	result := make([](*Range), 0)
 
-	// we can start from the first non solved clue up to the last non solved one
-	for i := l.clues[l.cb].begin; i <= l.clues[l.ce].end; i++ {
+	// we can start from the first non solved clue +1 up to the last non solved one
+	for i := l.clues[l.cb].begin + 1; i <= l.clues[l.ce].end; i++ {
 		s := l.squares[i]
 		switch {
 		case s.val == 0, s.val == 1:
 			if lastVal == 2 {
 				max = i - 1
-				result = append(result, &Range{min: min, max: max})
+				if l.squares[min-1].val != 1 || l.squares[max+1].val != 1 {
+					result = append(result, &Range{min: min, max: max})
+				}
 			}
 		case s.val == 2:
 			if lastVal != s.val {
+				// new one
 				min = i
 			}
 		}
@@ -196,7 +208,7 @@ func (l *Line) solvedGroups() [](*Range) {
 func (l *Line) getPotentialCluesForRange(r *Range) [](*Clue) {
 	cs := make([](*Clue), 0)
 	for _, c := range l.clues[l.cb : l.ce+1] {
-		if c.begin <= r.min && c.end >= r.max {
+		if c.begin <= r.min && c.end >= r.max && c.length >= r.length() {
 			cs = append(cs, c)
 		}
 	}
@@ -242,20 +254,20 @@ func (l *Line) getStepToNextBlank(r *Range, reverse bool) (bool, int) {
 
 // TODO refactor this function...
 func (l *Line) check1to1Mapping(rs [](*Range)) bool {
-	fmt.Printf("\nA4 Checking begin:")
 	// first we check the mapping in increasing order
+	//fmt.Printf("\nA4 Checking begin:")
 	c := l.clues[l.cb] // current clue
 	mapping := make(map[*Clue](*Range), len(l.clues))
 	for i := 0; i < len(rs); i++ {
 		r := rs[i]
-		fmt.Printf("\nClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
-		fmt.Printf("\nRange(b:%d,e:%d):", r.min, r.max)
+		// fmt.Printf("\nClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
+		// fmt.Printf("\nRange(b:%d,e:%d):", r.min, r.max)
 		if mapping[c] != nil {
 			if c.length < r.max-mapping[c].min+1 {
 				// if we didn't reach the last available clue
 				if c.index < l.ce {
 					c = l.clues[c.index+1]
-					fmt.Printf("\nNextClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
+					//fmt.Printf("\nNextClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
 				} else {
 					return false
 				}
@@ -270,19 +282,19 @@ func (l *Line) check1to1Mapping(rs [](*Range)) bool {
 
 	// if it was successful, we check in decreasing order
 	if c.index == l.ce {
-		fmt.Printf("\nA4 Checking end:")
+		//fmt.Printf("\nA4 Checking end:")
 		c = l.clues[l.ce] // current clue
 		mapping := make(map[*Clue](*Range), len(l.clues))
 		for i := len(rs); i > 0; i-- {
 			r := rs[i-1]
-			fmt.Printf("\nClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
-			fmt.Printf("\nRange(b:%d,e:%d):", r.min, r.max)
+			// fmt.Printf("\nClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
+			// fmt.Printf("\nRange(b:%d,e:%d):", r.min, r.max)
 			if mapping[c] != nil {
 				if c.length < mapping[c].max-r.min+1 {
 					// if we didn't reach the last available clue
 					if c.index > l.cb {
 						c = l.clues[c.index-1]
-						fmt.Printf("\nNextClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
+						//fmt.Printf("\nNextClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
 					} else {
 						return false
 					}
@@ -298,6 +310,6 @@ func (l *Line) check1to1Mapping(rs [](*Range)) bool {
 		return false
 	}
 
-	fmt.Printf("\nA4 Checking result (cb:%d, ce:%d, ci:%d): %t", l.cb, l.ce, c.index, c.index == l.cb)
+	//fmt.Printf("\nA4 Checking result (cb:%d, ce:%d, ci:%d): %t", l.cb, l.ce, c.index, c.index == l.cb)
 	return c.index == l.cb
 }
