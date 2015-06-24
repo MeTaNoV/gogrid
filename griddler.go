@@ -37,31 +37,6 @@ func (g *Griddler) error(e error, l int) error {
 	}
 }
 
-func (g *Griddler) initBoard() {
-	g.lines = make([](*Line), g.height)
-	for i := 0; i < g.height; i++ {
-		g.lines[i] = NewLine(g, i, g.width)
-		for j := 0; j < g.width; j++ {
-			g.lines[i].squares[j] = NewSquare(i, j, 0, g)
-		}
-	}
-	g.columns = make([](*Line), g.width)
-	for i := 0; i < g.width; i++ {
-		g.columns[i] = NewLine(g, i, g.height)
-		for j := 0; j < g.height; j++ {
-			g.columns[i].squares[j] = g.lines[j].squares[i]
-		}
-	}
-	g.solveQueue = make(chan (*Square), g.width*g.height)
-}
-
-func (g *Griddler) incrementSolvedLines() {
-	g.sumSolvedLines++
-	if g.sumSolvedLines == g.width+g.height {
-		g.isDone = true
-	}
-}
-
 func (g *Griddler) Load(filename string) error {
 	gFile, err := os.Open(filename)
 	if err != nil {
@@ -134,25 +109,6 @@ func (g *Griddler) Load(filename string) error {
 	return nil
 }
 
-func (g *Griddler) setValue(s *Square, val int) {
-	if s.val == 0 {
-		s.val = val
-		g.lStack.push(g.lines[s.x])
-		g.cStack.push(g.columns[s.y])
-		if val == 2 {
-			g.lines[s.x].incrementClues()
-			g.columns[s.y].incrementClues()
-		} else {
-			g.lines[s.x].incrementBlanks()
-			g.columns[s.y].incrementBlanks()
-		}
-		fmt.Printf("FOUND (%d,%d)\n", s.x+1, s.y+1)
-		g.solveQueue <- s
-		g.Show()
-		//Pause()
-	}
-}
-
 func (g *Griddler) Show() {
 	for i := 0; i < g.height+2; i++ {
 		if i == 0 || i == g.height+1 {
@@ -177,6 +133,50 @@ func (g *Griddler) Show() {
 	}
 	//fmt.Printf("\nLines completed: %d", g.sum)
 	fmt.Println()
+}
+
+func (g *Griddler) initBoard() {
+	g.lines = make([](*Line), g.height)
+	for i := 0; i < g.height; i++ {
+		g.lines[i] = NewLine(g, i, g.width)
+		for j := 0; j < g.width; j++ {
+			g.lines[i].squares[j] = NewSquare(i, j, 0, g)
+		}
+	}
+	g.columns = make([](*Line), g.width)
+	for i := 0; i < g.width; i++ {
+		g.columns[i] = NewLine(g, i, g.height)
+		for j := 0; j < g.height; j++ {
+			g.columns[i].squares[j] = g.lines[j].squares[i]
+		}
+	}
+	g.solveQueue = make(chan (*Square), g.width*g.height)
+}
+
+func (g *Griddler) setValue(s *Square, val int) {
+	if s.val == 0 {
+		s.val = val
+		g.lStack.push(g.lines[s.x])
+		g.cStack.push(g.columns[s.y])
+		if val == 2 {
+			g.lines[s.x].incrementClues()
+			g.columns[s.y].incrementClues()
+		} else {
+			g.lines[s.x].incrementBlanks()
+			g.columns[s.y].incrementBlanks()
+		}
+		fmt.Printf("FOUND (%d,%d)\n", s.x+1, s.y+1)
+		g.solveQueue <- s
+		g.Show()
+		//Pause()
+	}
+}
+
+func (g *Griddler) incrementSolvedLines() {
+	g.sumSolvedLines++
+	if g.sumSolvedLines == g.width+g.height {
+		g.isDone = true
+	}
 }
 
 func (g *Griddler) Solve() {
@@ -219,7 +219,7 @@ func (g *Griddler) solveInitLine(line *Line) {
 		for _, s := range line.squares {
 			g.setValue(s, 1)
 		}
-	case line.totalClues == g.width:
+	case line.totalClues == line.length:
 		for _, s := range line.squares {
 			g.setValue(s, 2)
 		}
@@ -259,83 +259,64 @@ func (g *Griddler) checkLine(l *Line) bool {
 	// algo 1, fill the beginning and end of line if possible
 	// XYY1...... with (3,...)
 	// .YX.0.... with (3,...)
-	res := g.checkLineAlgo1(l)
-	if !res {
-		return false
+	g.checkLineAlgo1(l)
+
+	// When a range has only one clue associated, update ranges accordingly
+	if !l.isDone {
+		g.checkLineAlgo9(l)
 	}
 
 	// algo 2, update the valid range for each clue and update possible values with overlap
 	// 0110..Y..010 with (3,...)
 	if !l.isDone {
-		res = g.checkLineAlgo2(l)
-		if !res {
-			return false
-		}
+		g.checkLineAlgo2(l)
 	}
 
 	// algo 3, check the clues with regards to maximal sizes on found squares
 	if !l.isDone {
-		res = g.checkLineAlgo3(l)
-		if !res {
-			return false
-		}
+		g.checkLineAlgo3(l)
 	}
 
 	// algo 4, check the clue with regards to existing found squares and ownership
 	if !l.isDone {
-		res = g.checkLineAlgo4(l)
-		if !res {
-			return false
-		}
+		g.checkLineAlgo4(l)
 	}
 
 	// algo 5, check finished ranged and try to find the corresponding clue from beginning or end to fill some blank
 	// e.g. ....0X0...0X0....X.X... for a (1,1,4) clue list will enable to blank the first 4 square
 	if !l.isDone {
-		res = g.checkLineAlgo5(l)
-		if !res {
-			return false
-		}
+		g.checkLineAlgo5(l)
 	}
 
 	// Algo 6: find a general use-case to be able to solve this pattern:
 	// .....X..0.0..... with (2,2,...)
 	if !l.isDone {
-		res = g.checkLineAlgo6(l)
-		if !res {
-			return false
-		}
+		g.checkLineAlgo6(l)
 	}
 
 	// ......YX0..YX0.. with (2,2,...) -> we can fill because of minimum size
 	// .......YXX.0.... with (4,5,...)
 	if !l.isDone {
-		res = g.checkLineAlgo7(l)
-		if !res {
-			return false
-		}
+		g.checkLineAlgo7(l)
 	}
 
 	// Algo 8: check possible border constraints following the pattern:
 	// |..X... -> .0X... (1,Z>1,...) or ...XX... -> ..0XX... with (2,Z>2,...)
 	if !l.isDone {
-		res = g.checkLineAlgo8(l)
-		if !res {
-			return false
-		}
+		g.checkLineAlgo8(l)
 	}
 
 	return true
 }
 
-func (g *Griddler) checkLineAlgo1(l *Line) bool {
+func (g *Griddler) checkLineAlgo1(l *Line) {
 	// From the beginning
 	for i := l.cb; i <= l.ce; i++ {
 		c := l.clues[i]
 		//fmt.Println("\nA1 From beginning:")
 		//fmt.Printf("\nClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
 		if !g.checkClueAlgo1(c, false) {
-			return false
+			return
 		}
 		if c.isDone {
 			continue
@@ -349,14 +330,13 @@ func (g *Griddler) checkLineAlgo1(l *Line) bool {
 		//fmt.Println("\nA1 From end:")
 		//fmt.Printf("\nClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
 		if !g.checkClueAlgo1(c, true) {
-			return false
+			return
 		}
 		if c.isDone {
 			continue
 		}
 		break
 	}
-	return true
 }
 
 // TODO refactor if possible...
@@ -552,7 +532,7 @@ func (g *Griddler) checkClueAlgo1(c *Clue, reverse bool) bool {
 	}
 }
 
-func (g *Griddler) checkLineAlgo2(l *Line) bool {
+func (g *Griddler) checkLineAlgo2(l *Line) {
 	for _, c := range l.clues[l.cb : l.ce+1] {
 		if c.isDone {
 			continue
@@ -560,12 +540,12 @@ func (g *Griddler) checkLineAlgo2(l *Line) bool {
 		// fmt.Println("\nA2 From beginning:")
 		// fmt.Printf("Clue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
 		if !g.checkClueAlgo2(c, false) {
-			return false
+			return
 		}
 		// fmt.Println("\nA2 From end:")
 		// fmt.Printf("Clue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
 		if !g.checkClueAlgo2(c, true) {
-			return false
+			return
 		}
 		// fmt.Println("\nSolve Overlap:")
 		c.solveOverlap()
@@ -577,7 +557,6 @@ func (g *Griddler) checkLineAlgo2(l *Line) bool {
 			g.checkClueAlgo1(c, true)
 		}
 	}
-	return true
 }
 
 func (g *Griddler) checkClueAlgo2(c *Clue, reverse bool) bool {
@@ -619,7 +598,7 @@ func (g *Griddler) checkClueAlgo2(c *Clue, reverse bool) bool {
 }
 
 // algo 3, check the clues with regards to maximal sizes on found squares
-func (g *Griddler) checkLineAlgo3(l *Line) bool {
+func (g *Griddler) checkLineAlgo3(l *Line) {
 	rsg := l.unsolvedGroups()
 
 	for _, r := range rsg {
@@ -667,11 +646,9 @@ func (g *Griddler) checkLineAlgo3(l *Line) bool {
 			}
 		}
 	}
-
-	return true
 }
 
-func (g *Griddler) checkLineAlgo4(l *Line) bool {
+func (g *Griddler) checkLineAlgo4(l *Line) {
 	rsg := l.unsolvedGroups()
 
 	if len(rsg) > l.ce-l.cb {
@@ -685,11 +662,9 @@ func (g *Griddler) checkLineAlgo4(l *Line) bool {
 			}
 		}
 	}
-
-	return true
 }
 
-func (g *Griddler) checkClueAlgo4(c *Clue, ri int, rsg [](*Range)) bool {
+func (g *Griddler) checkClueAlgo4(c *Clue, ri int, rsg [](*Range)) {
 	// if first, blank up to potential beginning of clue
 	if c.index == c.l.cb {
 		for i := 0; i < rsg[ri].max-c.length+1; i++ {
@@ -719,17 +694,15 @@ func (g *Griddler) checkClueAlgo4(c *Clue, ri int, rsg [](*Range)) bool {
 		c.l.decrementCluesEnd(c.index, c.end-rsg[ri].min-c.length+1)
 		//fmt.Printf("\nNewClue(A4e)(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
 	}
-
-	return true
 }
 
-func (g *Griddler) checkLineAlgo5(l *Line) bool {
+func (g *Griddler) checkLineAlgo5(l *Line) {
 	rsg := l.solvedGroups()
 	// for _, r := range rsg {
 	// 	fmt.Printf("\nRange(b:%d,e:%d):", r.min, r.max)
 	// }
 	if len(rsg) == 0 {
-		return true
+		return
 	}
 
 	// we want to map the solved group to clues and see if the first or last clue are among those for all possible mapping
@@ -796,15 +769,13 @@ func (g *Griddler) checkLineAlgo5(l *Line) bool {
 			l.updateCluesIndexes(cend, true)
 		}
 	}
-
-	return true
 }
 
 // ......X..0... with (2,2) or ......XX....0.... with (4,4)
 // the goal is to look if a candidate fit in the gap up to a blank
 // that candidate being the current clue or the next/previous one
 // and if we don't find one, we can blank
-func (g *Griddler) checkLineAlgo6(l *Line) bool {
+func (g *Griddler) checkLineAlgo6(l *Line) {
 	rsg := l.unsolvedGroups()
 
 	for _, r := range rsg {
@@ -862,8 +833,6 @@ func (g *Griddler) checkLineAlgo6(l *Line) bool {
 			}
 		}
 	}
-
-	return true
 }
 
 // .......X0...X0.. with (2,2,...) -> we can fill because of minimum size
@@ -871,7 +840,7 @@ func (g *Griddler) checkLineAlgo6(l *Line) bool {
 // for each filled group, we check the minimum size of all potential clue and fill
 // i.e. if we find one that is currently the size or smaller that range size plus the gap, we can't do anything
 // if not we take the shortest we found to do the fill
-func (g *Griddler) checkLineAlgo7(l *Line) bool {
+func (g *Griddler) checkLineAlgo7(l *Line) {
 	rsg := l.unsolvedGroups()
 
 	for _, r := range rsg {
@@ -925,20 +894,17 @@ func (g *Griddler) checkLineAlgo7(l *Line) bool {
 			}
 		}
 	}
-
-	return true
 }
 
 // Algo 8: check possible border constraints following the pattern:
 // |..X... -> .0X... (1,Z>1,...) or ...XX... -> ..0XX... with (2,Z>2,...)
-func (g *Griddler) checkLineAlgo8(l *Line) bool {
+func (g *Griddler) checkLineAlgo8(l *Line) {
 	// From the beginning
 	cb := l.clues[l.cb]
 	if l.checkRange(2, cb.begin+cb.length+1, cb.begin+2*cb.length) {
 		fmt.Println("\nA8 Checking border min size constraints:")
 		fmt.Println("\nA8 Found at the beginning!")
 		g.setValue(l.squares[cb.begin+cb.length], 1)
-		Pause()
 	}
 
 	// From the end
@@ -947,10 +913,28 @@ func (g *Griddler) checkLineAlgo8(l *Line) bool {
 		fmt.Println("\nA8 Checking border min size constraints:")
 		fmt.Println("\nA8 Found at the end!")
 		g.setValue(l.squares[ce.end-ce.length], 1)
-		Pause()
 	}
+}
 
-	return true
+// When a range has only one clue associated, update ranges accordingly
+func (g *Griddler) checkLineAlgo9(l *Line) {
+	rsg := l.unsolvedGroups()
+
+	for _, r := range rsg {
+		cs := l.getPotentialCluesForRange(r)
+
+		if len(cs) == 1 {
+			c := cs[0]
+			if c.begin < r.max-c.length+1 {
+				Pause()
+				l.updateCluesRanges(c, r.max-c.length+1-c.begin, false)
+			}
+			if c.end > r.min+c.length-1 {
+				Pause()
+				l.updateCluesRanges(c, r.max-c.length+1-c.begin, true)
+			}
+		}
+	}
 }
 
 // TODO: similar to algo 5, check empty surrounded by blank that does not fit any clue in size
