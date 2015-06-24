@@ -193,7 +193,55 @@ func (l *Line) solvedGroups() [](*Range) {
 	return result
 }
 
-func (l *Line) checkMapping(rs [](*Range)) bool {
+func (l *Line) getPotentialCluesForRange(r *Range) [](*Clue) {
+	cs := make([](*Clue), 0)
+	for _, c := range l.clues[l.cb : l.ce+1] {
+		if c.begin <= r.min && c.end >= r.max {
+			cs = append(cs, c)
+		}
+	}
+
+	return cs
+}
+
+func (l *Line) getExactCluesForRange(r *Range) [](*Clue) {
+	cs := make([](*Clue), 0)
+	for _, c := range l.clues[l.cb : l.ce+1] {
+		if c.begin <= r.min && c.end >= r.max && c.length == r.length() {
+			cs = append(cs, c)
+		}
+	}
+
+	return cs
+}
+
+func (l *Line) getStepToNextBlank(r *Range, reverse bool) (bool, int) {
+	var i int
+
+	if reverse {
+		i = r.min - 1
+	} else {
+		i = r.max + 1
+	}
+
+	result := 0
+	for i >= 0 && i < l.length {
+		s := l.squares[i]
+		switch {
+		case s.val == 0:
+			result++
+		case s.val == 1:
+			return true, result
+		case s.val == 2:
+			return false, result
+		}
+		i = IncOrDec(i, reverse)
+	}
+	return false, result
+}
+
+// TODO refactor this function...
+func (l *Line) check1to1Mapping(rs [](*Range)) bool {
 	fmt.Printf("\nA4 Checking begin:")
 	// first we check the mapping in increasing order
 	c := l.clues[l.cb] // current clue
