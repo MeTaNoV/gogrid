@@ -24,3 +24,12 @@ type Range struct {
 func (r *Range) length() int {
 	return r.max - r.min + 1
 }
+
+func IncOrDec(i int, reverse bool) int {
+	if reverse {
+		i--
+	} else {
+		i++
+	}
+	return i
+}
