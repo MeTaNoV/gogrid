@@ -131,7 +131,7 @@ func (l *Line) updateCluesRanges(c *Clue, length int, reverse bool) {
 	}
 }
 
-func (l *Line) checkRange(value int, min, max int) bool {
+func (l *Line) checkRangeForValue(value int, min, max int) bool {
 	if min < 0 || max >= l.length {
 		return false
 	}
@@ -143,7 +143,34 @@ func (l *Line) checkRange(value int, min, max int) bool {
 	return true
 }
 
-func (l *Line) unsolvedGroups() [](*Range) {
+func (l *Line) getRanges() [](*Range) {
+	lastVal := 0
+	min, max := 0, 0
+	result := make([](*Range), 0)
+
+	// we can start from the first non solved clue +1 up to the last non solved one
+	// alog 1 is taken care of the case when the first or last square is filled
+	for i := l.clues[l.cb].begin + 1; i <= l.clues[l.ce].end; i++ {
+		s := l.squares[i]
+		switch {
+		case s.val == 0, s.val == 1:
+			if lastVal == 2 {
+				max = i - 1
+				result = append(result, &Range{min: min, max: max})
+			}
+		case s.val == 2:
+			if s.val != lastVal {
+				// new one
+				min = i
+			}
+		}
+		lastVal = s.val
+	}
+
+	return result
+}
+
+func (l *Line) unsolvedRanges() [](*Range) {
 	lastVal := 0
 	min, max := 0, 0
 	result := make([](*Range), 0)
@@ -171,31 +198,26 @@ func (l *Line) unsolvedGroups() [](*Range) {
 	return result
 }
 
-func (l *Line) solvedGroups() [](*Range) {
+func (l *Line) solvedRanges() [](*Range) {
 	lastVal := 0
 	min, max := 0, 0
 	result := make([](*Range), 0)
-	blankBefore := 0
 
-	// we can start from the first non solved clue up to the last non solved one
-	for i := l.clues[l.cb].begin; i <= l.clues[l.ce].end; i++ {
-		// we are looking for a 0XXX0 pattern
+	// we can start from the first non solved clue +1 up to the last non solved one
+	for i := l.clues[l.cb].begin + 1; i <= l.clues[l.ce].end; i++ {
 		s := l.squares[i]
 		switch {
 		case s.val == 0:
-			blankBefore = 0
-			min, max = 0, 0
 		case s.val == 1:
-			if blankBefore == 0 {
-				blankBefore = 1
-				break
-			}
 			if lastVal == 2 {
 				max = i - 1
-				result = append(result, &Range{min: min, max: max})
+				if l.squares[min-1].val != 0 {
+					result = append(result, &Range{min: min, max: max})
+				}
 			}
 		case s.val == 2:
 			if lastVal != s.val {
+				// new one
 				min = i
 			}
 		}
