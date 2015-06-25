@@ -50,6 +50,10 @@ func NewLine(g *Griddler, index, length int) *Line {
 	}
 }
 
+func (l *Line) print(prefix string) {
+	fmt.Printf("%s-->Line: cb:%d, ce:%d\n", prefix, l.cb, l.ce)
+}
+
 func (l *Line) addClues(cs [](*Clue)) {
 	l.clues = cs
 	for i, val := range cs {
@@ -111,23 +115,20 @@ func (l *Line) decrementCluesEnd(index, n int) {
 	}
 }
 
-func (l *Line) updateCluesIndexes(c *Clue, reverse bool) {
-	if reverse {
-		if c.index > l.cb {
-			l.ce--
-		}
-	} else {
-		if c.index < l.ce {
-			l.cb++
-		}
-	}
-}
-
 func (l *Line) updateCluesRanges(c *Clue, length int, reverse bool) {
 	if reverse {
 		l.decrementCluesEnd(c.index, length)
 	} else {
 		l.incrementCluesBegin(c.index, length)
+	}
+}
+
+func (l *Line) updateCluesIndexes(c *Clue) {
+	if c.index == l.cb {
+		l.cb++
+	}
+	if c.index == l.ce {
+		l.ce--
 	}
 }
 
@@ -150,7 +151,7 @@ func (l *Line) getRanges() [](*Range) {
 
 	// we can start from the first non solved clue +1 up to the last non solved one
 	// alog 1 is taken care of the case when the first or last square is filled
-	for i := l.clues[l.cb].begin + 1; i <= l.clues[l.ce].end; i++ {
+	for i := l.clues[l.cb].begin; i <= l.clues[l.ce].end; i++ {
 		s := l.squares[i]
 		switch {
 		case s.val == 0, s.val == 1:
@@ -162,6 +163,10 @@ func (l *Line) getRanges() [](*Range) {
 			if s.val != lastVal {
 				// new one
 				min = i
+			}
+			if i == l.clues[l.ce].end {
+				max = i
+				result = append(result, &Range{min: min, max: max})
 			}
 		}
 		lastVal = s.val
@@ -225,6 +230,21 @@ func (l *Line) solvedRanges() [](*Range) {
 	}
 
 	return result
+}
+
+func (l *Line) searchClueForRange(r *Range, rs [](*Range)) *Clue {
+	cs := l.getPotentialCluesForRange(r)
+	for _, c := range cs {
+		//r.print("searchClueForRange")
+		c.print("searchClueForRange")
+	}
+
+	// if there is only one candidate available, return it
+	if len(cs) == 1 {
+		return cs[0]
+	}
+
+	return nil
 }
 
 func (l *Line) getPotentialCluesForRange(r *Range) [](*Clue) {

@@ -1,6 +1,7 @@
 package griddler
 
 import (
+	"fmt"
 	"os"
 )
 
@@ -30,6 +31,10 @@ type Range struct {
 
 func (r *Range) length() int {
 	return r.max - r.min + 1
+}
+
+func (r *Range) print(prefix string) {
+	fmt.Printf("%s-->Range(b:%d,e:%d)\n", prefix, r.min+1, r.max+1)
 }
 
 func IncOrDec(i int, reverse bool) int {

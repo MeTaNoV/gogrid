@@ -4,6 +4,12 @@ import (
 	"fmt"
 )
 
+const (
+	EMPTY = iota
+	BLANK
+	FILLED
+)
+
 // Square is the basic element of the grid
 type Square struct {
 	x, y int
@@ -21,11 +27,11 @@ func NewSquare(x, y, v int, g *Griddler) *Square {
 func (s Square) show() {
 	//fmt.Printf("(%d,%d,", s.x, s.y)
 	switch s.val {
-	case 0:
+	case EMPTY:
 		fmt.Printf(" ")
-	case 1:
+	case BLANK:
 		fmt.Printf(".")
-	case 2:
+	case FILLED:
 		fmt.Printf("X")
 	}
 	//fmt.Printf(")")

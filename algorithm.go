@@ -4,19 +4,21 @@ import (
 	"fmt"
 )
 
+// user-defined function to define solving algorithm
 type Algorithm func(g *Griddler, l *Line)
 
+// algo to be used to solve basic case (empty/full) and initialize clue range
 func solveInitAlgo(g *Griddler, l *Line) {
 	switch {
 	// no clues are defined for the line, we can blank everything
 	case l.totalClues == 0:
 		for _, s := range l.squares {
-			g.setValue(s, 1)
+			g.setValue(s, BLANK)
 		}
 	// the total of the clue is equal to the line length (i.e. one big clue is defined)
 	case l.totalClues == l.length:
 		for _, s := range l.squares {
-			g.setValue(s, 2)
+			g.setValue(s, FILLED)
 		}
 	// we initialized all clue ranges and solve the overlap
 	default:
@@ -36,228 +38,40 @@ func solveInitAlgo(g *Griddler, l *Line) {
 	}
 }
 
-// algo 1, fill the beginning and end of line if possible
-// XYY1...... with (3,...)
-// .YX.0.... with (3,...)
-func solveAlgo1(g *Griddler, l *Line) {
-	// From the beginning
-	for i := l.cb; i <= l.ce; i++ {
-		c := l.clues[i]
-		//fmt.Println("\nA1 From beginning:")
-		//fmt.Printf("\nClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
-		if !checkClueAlgo1(g, c, false) {
-			return
-		}
-		if c.isDone {
-			continue
-		}
-		break
+// for each range of filled block on the line, try to determine the associated clue and
+// update relevant range information, then solveOverlap
+func solveFilledRange(g *Griddler, l *Line) {
+	l.print("solveFilledRange")
+
+	rs := l.getRanges()
+	for _, r := range rs {
+		r.print("solveFilledRange")
 	}
 
-	// From the end
-	for i := l.ce; i >= l.cb; i-- {
-		c := l.clues[i]
-		//fmt.Println("\nA1 From end:")
-		//fmt.Printf("\nClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
-		if !checkClueAlgo1(g, c, true) {
-			return
-		}
-		if c.isDone {
-			continue
-		}
-		break
-	}
-}
+	for _, r := range rs {
+		c := l.searchClueForRange(r, rs)
 
-// TODO refactor if possible...
-func checkClueAlgo1(g *Griddler, c *Clue, reverse bool) bool {
-	emptyBefore, emptyAfter := 0, 0
-	filledBefore, filledAfter := 0, 0
-	l := c.l
-	i := c.begin
-	if reverse {
-		i = c.end
-	}
-	//fmt.Printf("\nAlgo 1:")
-	for {
-		switch {
-		case l.squares[i].val == 0:
-			//fmt.Printf("(%d,%d, )", l.squares[i].x+1, l.squares[i].y+1)
-			if filledBefore > 0 {
-				// we can potentially fill the square
-				if filledBefore+emptyBefore < c.length {
-					g.setValue(l.squares[i], 2)
-					filledBefore++
-					break
-				}
-				// if we filled it completely, we can blank and potentially before or after
-				if filledBefore == c.length {
-					g.setValue(l.squares[i], 1)
-					if reverse {
-						if i < l.length-c.length-1 {
-							g.setValue(l.squares[i+c.length+1], 1)
-						}
-					} else {
-						if i > c.length+1 {
-							g.setValue(l.squares[i-c.length-1], 1)
-						}
-					}
-					// flag the clue
-					c.isDone = true
-					// update line clue indexes
-					l.updateCluesIndexes(c, reverse)
-					// no need to update the range of clues
-
-					return true
-				}
-				// we increment the blank after and exit if necessary
-				emptyAfter++
-				if filledBefore+emptyAfter+filledAfter > c.length {
-					return true
-				}
-			} else {
-				// the number of empty square is > at the searched length, we can exit
-				emptyBefore++
-				if emptyBefore > c.length {
-					return true
+		if c != nil {
+			if c.index == l.cb {
+				for i := c.begin; i < r.max-c.length+1; i++ {
+					g.setValue(l.squares[i], BLANK)
 				}
 			}
-		case l.squares[i].val == 1:
-			//fmt.Printf("(%d,%d,0)", l.squares[i].x+1, l.squares[i].y+1)
-			if filledBefore > 0 {
-				// we can pursue the filling going backward (ex: ..X..0)
-				for j := filledBefore + emptyAfter + filledAfter; j < c.length; j++ {
-					if reverse {
-						g.setValue(l.squares[i+1+j], 2)
-					} else {
-						g.setValue(l.squares[i-1-j], 2)
-					}
-				}
-				// update range
-				if reverse {
-					c.begin = i + 1
-				} else {
-					c.end = i - 1
-				}
-
-				if emptyAfter == 0 {
-					// ending with blanks if we don't reach the border
-					if reverse {
-						if i+1+c.length < l.length {
-							g.setValue(l.squares[i+1+c.length], 1)
-						}
-					} else {
-						if i-1-c.length > 0 {
-							g.setValue(l.squares[i-1-c.length], 1)
-						}
-					}
-					// flag the clue
-					c.isDone = true
-					// update line clue status
-					l.updateCluesIndexes(c, reverse)
-					// TODO: be sure no need to update range
-				}
-
-				return true
+			if c.begin < r.max-c.length+1 {
+				l.updateCluesRanges(c, r.max-c.length+1-c.begin, false)
 			}
-			if emptyBefore > 0 {
-				// if no place for this clue, we can blank
-				if emptyBefore < c.length {
-					for j := 0; j < emptyBefore; j++ {
-						if reverse {
-							g.setValue(l.squares[i+1+j], 1)
-						} else {
-							g.setValue(l.squares[i-1-j], 1)
-						}
-					}
-				} else {
-					return true
+			if c.index == l.ce {
+				for i := c.end; i > r.min+c.length-1; i-- {
+					g.setValue(l.squares[i], BLANK)
 				}
 			}
-			// if we encounter this first or only empties, we can propagate the update of clue's range
-			l.updateCluesRanges(c, emptyBefore+1, reverse)
-			emptyBefore = 0
-		case l.squares[i].val == 2:
-			//fmt.Printf("(%d,%d,X)", l.squares[i].x+1, l.squares[i].y+1)
-			if emptyAfter == 0 {
-				// if this is the first fill, we can update the clue range
-				if filledBefore == 0 {
-					if reverse {
-						c.begin = i - c.length + 1
-					} else {
-						c.end = i + c.length - 1
-					}
-				}
-				filledBefore++
-				switch {
-				case filledBefore < c.length:
-					// if we joined existing checked square (e.g ..XX.X)
-					if filledBefore+emptyBefore > c.length {
-						if reverse {
-							g.setValue(l.squares[i+c.length], 1)
-						} else {
-							g.setValue(l.squares[i-c.length], 1)
-						}
-						l.updateCluesRanges(c, 1, reverse)
-						emptyBefore--
-					}
-				// here we found it all, we can blank the beginning and the end
-				case filledBefore == c.length:
-					if reverse {
-						if i > 0 {
-							g.setValue(l.squares[i-1], 1)
-						}
-						if i < l.length-c.length {
-							g.setValue(l.squares[i+c.length], 1)
-						}
-					} else {
-						if i < l.length-1 {
-							g.setValue(l.squares[i+1], 1)
-						}
-						if i >= c.length {
-							g.setValue(l.squares[i-c.length], 1)
-						}
-					}
-					// if it was the last clue, blank until the end
-					if reverse {
-						if c.index == l.cb {
-							for j := 0; j < i; j++ {
-								g.setValue(l.squares[j], 1)
-							}
-						}
-					} else {
-						if c.index == l.ce {
-							for j := c.end; j > i; j-- {
-								g.setValue(l.squares[j], 1)
-							}
-						}
-					}
-
-					// flag the clue
-					c.isDone = true
-					// update line clue status
-					l.updateCluesIndexes(c, reverse)
-					// updqte clues ranges
-					l.updateCluesRanges(c, emptyBefore, reverse)
-					return true
-				case filledBefore > c.length:
-					fmt.Println("WWAARRNNIINNGG: filled > c.length")
-					return false
-				}
-			} else {
-				filledAfter++
+			if c.end > r.min+c.length-1 {
+				l.updateCluesRanges(c, c.end-r.min-c.length+1, true)
 			}
-		}
-		if reverse {
-			i--
-			if i < c.begin-1 || i < 0 {
-				return true
-			}
-		} else {
-			i++
-			if i > c.end+1 || i > l.length-1 {
-				return true
-			}
+			c.solveConstraints(true)
+			c.solveConstraints(false)
+			c.solveOverlap()
+			c.solveCompleteness()
 		}
 	}
 }
@@ -287,75 +101,6 @@ func solveAlgo9(g *Griddler, l *Line) {
 			}
 			if c.end > r.min+c.length-1 {
 				l.updateCluesRanges(c, c.end-r.min-c.length+1, true)
-			}
-		}
-	}
-}
-
-// algo 2, update the valid range for each clue and update possible values with overlap
-// 0110..Y..010 with (3,...)
-func solveAlgo2(g *Griddler, l *Line) {
-	for _, c := range l.clues[l.cb : l.ce+1] {
-		if c.isDone {
-			continue
-		}
-		// fmt.Println("\nA2 From beginning:")
-		// fmt.Printf("Clue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
-		if !checkClueAlgo2(g, c, false) {
-			return
-		}
-		// fmt.Println("\nA2 From end:")
-		// fmt.Printf("Clue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
-		if !checkClueAlgo2(g, c, true) {
-			return
-		}
-
-		// fmt.Println("\nSolve Overlap:")
-		c.solveOverlap()
-
-		// if first or last clue, we can run algo 1 to check if done
-		if c.index == l.cb {
-			checkClueAlgo1(g, c, false)
-		}
-		if c.index == l.ce {
-			checkClueAlgo1(g, c, true)
-		}
-	}
-}
-
-func checkClueAlgo2(g *Griddler, c *Clue, reverse bool) bool {
-	empty := 0
-	filled := 0
-	l := c.l
-	i := c.begin
-	if reverse {
-		i = c.end
-	}
-	for {
-		switch {
-		case l.squares[i].val == 0:
-			//fmt.Printf("(%d,%d) ", l.squares[i].x+1, l.squares[i].y+1)
-			empty++
-		case l.squares[i].val == 1:
-			//fmt.Printf("(%d,%d).", l.squares[i].x+1, l.squares[i].y+1)
-			if (empty + filled) < c.length {
-				l.updateCluesRanges(c, empty+filled+1, reverse)
-				empty = 0
-				filled = 0
-			}
-		case l.squares[i].val == 2:
-			//fmt.Printf("(%d,%d)X", l.squares[i].x+1, l.squares[i].y+1)
-			filled++
-		}
-		if reverse {
-			i--
-			if i < c.begin {
-				return true
-			}
-		} else {
-			i++
-			if i > c.end {
-				return true
 			}
 		}
 	}
@@ -458,83 +203,6 @@ func checkClueAlgo4(g *Griddler, c *Clue, ri int, rsg [](*Range)) {
 		}
 		c.l.decrementCluesEnd(c.index, c.end-rsg[ri].min-c.length+1)
 		//fmt.Printf("\nNewClue(A4e)(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
-	}
-}
-
-// algo 5, check finished ranged and try to find the corresponding clue from beginning or end to fill some blank
-// e.g. ....0X0...0X0....X.X... for a (1,1,4) clue list will enable to blank the first 4 square
-func solveAlgo5(g *Griddler, l *Line) {
-	rsg := l.solvedRanges()
-	// for _, r := range rsg {
-	// 	fmt.Printf("\nRange(b:%d,e:%d):", r.min, r.max)
-	// }
-	if len(rsg) == 0 {
-		return
-	}
-
-	// we want to map the solved group to clues and see if the first or last clue are among those for all possible mapping
-	// if this is the case, we can blank and resolve those!
-	// to verify that, we only have to check that the first/last clue is in the first/last range available
-	// and that no other mapping is possible, i.e. if we find another mapping, it fails
-	cbeg := l.clues[l.cb]
-	// if the first clue contains the first range, we can proceed further
-	if cbeg.begin <= rsg[0].min && cbeg.end >= rsg[0].max && cbeg.length == rsg[0].length() {
-		isFound := false
-		lastIndex := cbeg.index
-		// we check if we found a possible mapping without the first clue
-		for _, r := range rsg {
-			isFound = false
-			for _, c := range l.clues[lastIndex+1 : l.ce+1] {
-				if c.begin <= r.min && c.end >= r.max && c.length == r.length() {
-					isFound = true
-					lastIndex = c.index
-					break
-				}
-			}
-		}
-		// if not found, the first range is the first clue!
-		if !isFound {
-			fmt.Println("A5 Checking solved group mapping:")
-			fmt.Println("A5 From beginning:")
-
-			for i := 0; i < rsg[0].min-1; i++ {
-				g.setValue(l.squares[i], 1)
-			}
-			cbeg.isDone = true
-			l.updateCluesRanges(cbeg, rsg[0].min-cbeg.begin, false)
-			l.updateCluesIndexes(cbeg, false)
-		}
-	}
-
-	cend := l.clues[l.ce]
-	// if the last clue contains the last range, we can proceed further
-	if cend.begin <= rsg[len(rsg)-1].min && cend.end >= rsg[len(rsg)-1].max && cend.length == rsg[len(rsg)-1].length() {
-		isFound := false
-		lastIndex := cend.index
-		// we check if we found a possible mapping without the first clue
-		for i := len(rsg); i > 0; i-- {
-			r := rsg[i-1]
-			isFound = false
-			for j := lastIndex - 1; j >= l.cb; j-- {
-				c := l.clues[j]
-				if c.begin <= r.min && c.end >= r.max && c.length == r.length() {
-					isFound = true
-					lastIndex = c.index
-					break
-				}
-			}
-		}
-		// if not found, the first range is the first clue!
-		if !isFound {
-			fmt.Println("A5 Checking solved group mapping:")
-			fmt.Println("A5 From end:")
-			for i := l.length - 1; i > rsg[len(rsg)-1].max+1; i-- {
-				g.setValue(l.squares[i], 1)
-			}
-			cend.isDone = true
-			l.updateCluesRanges(cend, cend.end-rsg[len(rsg)-1].max, true)
-			l.updateCluesIndexes(cend, true)
-		}
 	}
 }
 
