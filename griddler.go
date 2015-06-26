@@ -30,9 +30,9 @@ func NewGriddler() *Griddler {
 		cStack:         Stack{},
 		solveInitAlgo:  solveInitAlgo,
 		solveAlgos: []Algorithm{
-			solveFilledRange,
-			//solveAlgo1,
-			//solveAlgo9,
+			solveFilledRanges,
+			solveFinishedRanges,
+			solveEmptyRanges,
 			//solveAlgo2,
 			//solveAlgo3,
 			//solveAlgo4,
@@ -201,12 +201,12 @@ func (g *Griddler) Solve() {
 	for l != nil || c != nil {
 		if l != nil && !l.isDone {
 			fmt.Printf("\n=================== checking line %d ===================\n", l.index+1)
-			Pause()
+			//Pause()
 			g.solveLine(l)
 		}
 		if c != nil && !c.isDone {
 			fmt.Printf("\n=================== checking column %d ===================\n", c.index+1)
-			Pause()
+			//Pause()
 			g.solveLine(c)
 		}
 		l = g.lStack.pop()

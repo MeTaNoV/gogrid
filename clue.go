@@ -48,7 +48,7 @@ func (c *Clue) solveConstraints(reverse bool) {
 		case l.squares[i].val == BLANK:
 			//fmt.Printf("(%d,%d).", l.squares[i].x+1, l.squares[i].y+1)
 			if (empty + filled) < c.length {
-				l.updateCluesRanges(c, empty+filled+1, reverse)
+				l.updateCluesLimits(c, empty+filled+1, reverse)
 				empty = 0
 				filled = 0
 			}
@@ -76,4 +76,8 @@ func (c *Clue) solveCompleteness() {
 		// update line clue indexes
 		c.l.updateCluesIndexes(c)
 	}
+}
+
+func (c *Clue) contains(r *Range) bool {
+	return c.begin <= r.min && c.end >= r.max
 }
