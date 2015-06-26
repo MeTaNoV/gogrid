@@ -44,14 +44,13 @@ func solveFilledRange(g *Griddler, l *Line) {
 	l.print("solveFilledRange")
 
 	rs := l.getRanges()
+
 	for _, r := range rs {
 		r.print("solveFilledRange")
-	}
+		cs := l.searchCluesForRange(r, rs)
 
-	for _, r := range rs {
-		c := l.searchClueForRange(r, rs)
-
-		if c != nil {
+		switch {
+		case len(cs) == 1:
 			if c.index == l.cb {
 				for i := c.begin; i < r.max-c.length+1; i++ {
 					g.setValue(l.squares[i], BLANK)

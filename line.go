@@ -88,10 +88,12 @@ func (l *Line) incrementCluesBegin(index, n int) {
 		switch {
 		case i == index:
 			l.clues[i].begin += n
+			l.clues[i].print("incrementCluesBegin")
 		case i > index:
 			// in case the current clue is already further, we will exit
 			if l.clues[i-1].begin+l.clues[i-1].length+1 > l.clues[i].begin {
 				l.clues[i].begin = l.clues[i-1].begin + l.clues[i-1].length + 1
+				l.clues[i].print("incrementCluesBegin")
 			} else {
 				return
 			}
@@ -104,10 +106,12 @@ func (l *Line) decrementCluesEnd(index, n int) {
 		switch {
 		case i == index:
 			l.clues[i].end -= n
+			l.clues[i].print("incrementCluesEnd")
 		case i < index:
 			// in case the current clue is already further, we will exit
 			if l.clues[i+1].end-l.clues[i+1].length-1 < l.clues[i].end {
 				l.clues[i].end = l.clues[i+1].end - l.clues[i+1].length - 1
+				l.clues[i].print("incrementCluesEnd")
 			} else {
 				return
 			}
@@ -130,6 +134,7 @@ func (l *Line) updateCluesIndexes(c *Clue) {
 	if c.index == l.ce {
 		l.ce--
 	}
+	l.print("updateCluesIndexes")
 }
 
 func (l *Line) checkRangeForValue(value int, min, max int) bool {
@@ -232,19 +237,25 @@ func (l *Line) solvedRanges() [](*Range) {
 	return result
 }
 
-func (l *Line) searchClueForRange(r *Range, rs [](*Range)) *Clue {
+func (l *Line) searchCluesForRange(r *Range, rs [](*Range)) [](*Clue) {
 	cs := l.getPotentialCluesForRange(r)
 	for _, c := range cs {
-		//r.print("searchClueForRange")
-		c.print("searchClueForRange")
+		c.print("searchCluesforRange")
 	}
 
+	result = make([](*Clue), 0)
+
+	switch {
+	case len(cs) == 0:
 	// if there is only one candidate available, return it
-	if len(cs) == 1 {
-		return cs[0]
+	case len(cs) == 1:
+		return append(result, cs[0])
+	// we need to remove clue bound to the remaining Range
+	case len(cs) > 0:
+
 	}
 
-	return nil
+	return result
 }
 
 func (l *Line) getPotentialCluesForRange(r *Range) [](*Clue) {

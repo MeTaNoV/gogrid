@@ -257,6 +257,8 @@ func (g *Griddler) solveLine(l *Line) {
 // verify that it is not already covered by algo 2..., or somehow badly implemented
 // TODO: find a general use-case to be able to solve this pattern:
 // ......XX.X00.000 with (4,1) -> we can blank the beginning
+// TODO: find a general use-case to be able to solve this pattern:
+// ......X.X...... with (2,2) 3 is not possible, leading to a blank
 // TODO: try & error case on the borders, one with the line empty, the other with some clue found
 // TODO: refactor the whole function to suppress from the boolean returned to print the summary of execution for example,
 // exception in setValue() will be used to check a bad line solving during trial&error
