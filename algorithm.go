@@ -13,12 +13,12 @@ func solveInitAlgo(g *Griddler, l *Line) {
 	// no clues are defined for the line, we can blank everything
 	case l.totalClues == 0:
 		for _, s := range l.squares {
-			g.setValue(s, BLANK)
+			g.SetValue(s, BLANK)
 		}
 	// the total of the clue is equal to the line length (i.e. one big clue is defined)
 	case l.totalClues == l.length:
 		for _, s := range l.squares {
-			g.setValue(s, FILLED)
+			g.SetValue(s, FILLED)
 		}
 	// we initialized all clue ranges and solve the overlap
 	default:
@@ -41,10 +41,10 @@ func solveInitAlgo(g *Griddler, l *Line) {
 // for each range of filled block on the line, try to determine the associated clue and
 // update relevant range information, then solveOverlap
 func solveFilledRanges(g *Griddler, l *Line) {
-	l.print("solveFilledRanges")
+	//l.print("solveFilledRanges")
 
 	for _, c := range l.clues {
-		c.print("solveFilledRanges")
+		//c.print("solveFilledRanges")
 		c.solveConstraints(true)
 		c.solveConstraints(false)
 		c.solveOverlap()
@@ -55,7 +55,7 @@ func solveFilledRanges(g *Griddler, l *Line) {
 	l.updateCluesForRanges(rs)
 
 	for _, r := range rs {
-		r.print("solveFilledRanges")
+		//r.print("solveFilledRanges")
 
 		cs := l.getPotentialCluesForRange(r)
 
@@ -69,7 +69,7 @@ func solveFilledRanges(g *Griddler, l *Line) {
 				// TODO, here we start at 0, because c.begin is already updated, else
 				// we can move the blank process in updateCluesForRanges()
 				for i := 0; i < r.max-c.length+1; i++ {
-					g.setValue(l.squares[i], BLANK)
+					g.SetValue(l.squares[i], BLANK)
 				}
 			}
 			if c.begin < r.max-c.length+1 {
@@ -79,7 +79,7 @@ func solveFilledRanges(g *Griddler, l *Line) {
 				// TODO, here we start at l.length-1, because c.end is already updated, else
 				// we can move the blank process in updateCluesForRanges()
 				for i := l.length - 1; i > r.min+c.length-1; i-- {
-					g.setValue(l.squares[i], BLANK)
+					g.SetValue(l.squares[i], BLANK)
 				}
 			}
 			if c.end > r.min+c.length-1 {
@@ -96,8 +96,8 @@ func solveFilledRanges(g *Griddler, l *Line) {
 			// }
 			// if all potential clues are of the Range size, we can finish it
 			if maxLength(cs) == r.length() {
-				g.setValue(l.squares[r.min-1], BLANK)
-				g.setValue(l.squares[r.max+1], BLANK)
+				g.SetValue(l.squares[r.min-1], BLANK)
+				g.SetValue(l.squares[r.max+1], BLANK)
 			}
 			// we can increment or decrement ??? It should be done in updateCluesForRanges() already...
 			// TODO how can we blank beginning or end ?!?
@@ -106,21 +106,21 @@ func solveFilledRanges(g *Griddler, l *Line) {
 }
 
 func solveEmptyRanges(g *Griddler, l *Line) {
-	l.print("solveEmptyRanges")
+	//l.print("solveEmptyRanges")
 	// first, we can handle the square not covered by any clue anymore
 	i := 0
 	for _, c := range l.clues {
-		c.print("solveEmptyRanges 1")
+		//c.print("solveEmptyRanges 1")
 		if c.begin > i {
 			//Pause()
 			for j := i; j < c.begin; j++ {
-				g.setValue(l.squares[j], BLANK)
+				g.SetValue(l.squares[j], BLANK)
 			}
 		}
 		i = c.end + 1
 	}
 	for j := i; j < l.length; j++ {
-		g.setValue(l.squares[j], BLANK)
+		g.SetValue(l.squares[j], BLANK)
 	}
 
 	// second, we can take a look at *real* empty ranges (e.g. ..0..0.. or border inclusive)
@@ -131,10 +131,10 @@ func solveEmptyRanges(g *Griddler, l *Line) {
 
 		// if there is no candidate, we can blank
 		if len(cs) > 0 && minLength(cs) > r.length() {
-			r.print("solveEmptyRanges")
+			//r.print("solveEmptyRanges")
 			//Pause()
 			for i := r.min; i <= r.max; i++ {
-				g.setValue(l.squares[i], BLANK)
+				g.SetValue(l.squares[i], BLANK)
 			}
 		}
 	}
@@ -145,7 +145,7 @@ func solveEmptyRanges(g *Griddler, l *Line) {
 // that candidate being the current clue or the next/previous one
 // and if we don't find one, we can blank
 func solveAlgo6(g *Griddler, l *Line) {
-	l.print("solveAlgo6")
+	//l.print("solveAlgo6")
 	rsg := l.getUnsolvedRanges()
 
 	for _, r := range rsg {
@@ -167,12 +167,8 @@ func solveAlgo6(g *Griddler, l *Line) {
 			}
 			//if we didn't find anyone, we can blank taking into account the longest trail
 			if len(cs) > 1 && !isFound {
-				// fmt.Println("\nA6 Checking filled/blank constraints:")
-				// fmt.Printf("Range(b:%d,e:%d):\n", r.min+1, r.max+1)
-				// fmt.Printf("A6 Forward: step:%d, longest:%d\n", step, longest)
 				for i := longest + 1; i <= step; i++ {
-					g.setValue(l.squares[r.max+i], BLANK)
-					//Pause()
+					g.SetValue(l.squares[r.max+i], BLANK)
 				}
 			}
 		}
@@ -193,12 +189,8 @@ func solveAlgo6(g *Griddler, l *Line) {
 			}
 			//if we didn't find anyone, we can blank taking into account the longest trail
 			if len(cs) > 1 && !isFound {
-				// fmt.Println("\nA6 Checking filled/blank constraints:")
-				// fmt.Printf("Range(b:%d,e:%d):\n", r.min+1, r.max+1)
-				// fmt.Printf("A6 Backward: step:%d, longest:%d\n", step, longest)
 				for i := longest + 1; i <= step; i++ {
-					g.setValue(l.squares[r.min-i], BLANK)
-					//Pause()
+					g.SetValue(l.squares[r.min-i], BLANK)
 				}
 			}
 		}
@@ -211,7 +203,7 @@ func solveAlgo6(g *Griddler, l *Line) {
 // i.e. if we find one that is currently the size or smaller that range size plus the gap, we can't do anything
 // if not we take the shortest we found to do the fill
 func solveAlgo7(g *Griddler, l *Line) {
-	l.print("solveAlgo7")
+	//l.print("solveAlgo7")
 	rsg := l.getUnsolvedRanges()
 
 	for _, r := range rsg {
@@ -231,12 +223,8 @@ func solveAlgo7(g *Griddler, l *Line) {
 			}
 			//if we didn't find anyone, we can fill taking into account the shortest trail
 			if !isFound {
-				// fmt.Println("\nA7 Checking filled/size constraints:")
-				// fmt.Printf("Range(b:%d,e:%d):\n", r.min+1, r.max+1)
-				// fmt.Printf("A7 Backward fill: step:%d, shortest:%d\n", step, shortest)
 				for i := 0; i < shortest; i++ {
-					g.setValue(l.squares[r.min-i-1], 2)
-					//Pause()
+					g.SetValue(l.squares[r.min-i-1], 2)
 				}
 			}
 		}
@@ -255,12 +243,8 @@ func solveAlgo7(g *Griddler, l *Line) {
 			}
 			//if we didn't find anyone, we can fill taking into account the shortest trail
 			if !isFound {
-				// fmt.Println("\nA7 Checking filled/size constraints:")
-				// fmt.Printf("Range(b:%d,e:%d):\n", r.min+1, r.max+1)
-				// fmt.Printf("A7 Forward: step:%d, shortest:%d\n", step, shortest)
 				for i := 0; i < shortest; i++ {
-					g.setValue(l.squares[r.max+i+1], FILLED)
-					//Pause()
+					g.SetValue(l.squares[r.max+i+1], FILLED)
 				}
 			}
 		}
@@ -270,13 +254,13 @@ func solveAlgo7(g *Griddler, l *Line) {
 // Algo 8: check possible border constraints following the pattern:
 // |..X... -> .0X... (1,Z>1,...) or ...XX... -> ..0XX... with (2,Z>2,...)
 func solveAlgo8(g *Griddler, l *Line) {
-	l.print("solveAlgo8")
+	//l.print("solveAlgo8")
 	// From the beginning
 	cb := l.clues[l.cb]
 	if l.checkRangeForValue(2, cb.begin+cb.length+1, cb.begin+2*cb.length) {
 		// fmt.Println("\nA8 Checking border min size constraints:")
 		// fmt.Println("\nA8 Found at the beginning!")
-		g.setValue(l.squares[cb.begin+cb.length], BLANK)
+		g.SetValue(l.squares[cb.begin+cb.length], BLANK)
 	}
 
 	// From the end
@@ -284,6 +268,6 @@ func solveAlgo8(g *Griddler, l *Line) {
 	if l.checkRangeForValue(2, ce.end-2*ce.length, ce.end-ce.length-1) {
 		// fmt.Println("\nA8 Checking border min size constraints:")
 		// fmt.Println("\nA8 Found at the end!")
-		g.setValue(l.squares[ce.end-ce.length], BLANK)
+		g.SetValue(l.squares[ce.end-ce.length], BLANK)
 	}
 }

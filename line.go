@@ -275,7 +275,7 @@ func (l *Line) updateCluesForRanges(rs [](*Range)) {
 	// the presence of filled Range on a line introduce limit constraints om clues that
 	// we are performing on a 2-pass phase from the beginning and from the end
 
-	l.print("updateCluesForRanges")
+	//l.print("updateCluesForRanges")
 
 	// From beginning
 	iClue := l.cb
@@ -290,17 +290,17 @@ LoopBegin:
 			continue
 		}
 
-		r.print("updateCluesForRanges Begin")
+		//r.print("updateCluesForRanges Begin")
 
 		switch {
 		// if the clue does not fit, we can decrement its end  ......XX.. with (1,2)
 		case c.length < r.length():
-			c.print("updateCluesForRanges Begin case 1")
+			//c.print("updateCluesForRanges Begin case 1")
 			if c.end > r.min-2 {
 				l.decrementCluesEnd(c, c.end-r.min+2)
 			}
 		case c.length == r.length():
-			c.print("updateCluesForRanges Begin case 2")
+			//c.print("updateCluesForRanges Begin case 2")
 			// if it fits exactly, we can decrement its end
 			if c.end > r.min+c.length-1 {
 				l.decrementCluesEnd(c, c.end-(r.min+c.length-1))
@@ -313,7 +313,7 @@ LoopBegin:
 			}
 			// if the range is solved, it is impossible to fit, so we decrement its end and reset
 			if l.isSolved(r) {
-				c.print("updateCluesForRanges Begin case 4")
+				//c.print("updateCluesForRanges Begin case 4")
 				if c.end > r.min-2 {
 					l.decrementCluesEnd(c, c.end-r.min+2)
 				}
@@ -342,16 +342,15 @@ LoopBegin:
 				}
 				for concat.max < c.end {
 					if l.isSolved(concat) {
-						concat.print("updateCluesForRanges Begin case 6")
+						//concat.print("updateCluesForRanges Begin case 6")
 						if c.end > concat.min-2 {
 							l.decrementCluesEnd(c, c.end-concat.min+2)
 						}
-						//Pause()
 						iClue = l.cb
 						iRange = 0
 						continue LoopBegin
 					}
-					concat.print("updateCluesForRanges Begin case 7")
+					//concat.print("updateCluesForRanges Begin case 7")
 					iRange++
 					if iRange < len(rs) {
 						concat = &Range{min: r.min, max: rs[iRange].max}
@@ -386,17 +385,17 @@ LoopEnd:
 			continue
 		}
 
-		r.print("updateCluesForRanges End")
+		//r.print("updateCluesForRanges End")
 
 		switch {
 		// if the clue does not fit, we can decrement its end  ......XX.. with (1,2)
 		case c.length < r.length():
-			c.print("updateCluesForRanges End case 1")
+			//c.print("updateCluesForRanges End case 1")
 			if c.begin < r.max+2 {
 				l.incrementCluesBegin(c, r.max+2-c.begin)
 			}
 		case c.length == r.length():
-			c.print("updateCluesForRanges End case 2")
+			//c.print("updateCluesForRanges End case 2")
 			// if it fits exactly, we can decrement its end
 			if c.begin < r.max-c.length+1 {
 				l.incrementCluesBegin(c, r.max-c.length+1-c.begin)
@@ -409,7 +408,7 @@ LoopEnd:
 			}
 			// if the range is solved, it is impossible to fit, so we decrement its end and reset
 			if l.isSolved(r) {
-				c.print("updateCluesForRanges End case 4")
+				//c.print("updateCluesForRanges End case 4")
 				if c.begin < r.max+2 {
 					l.incrementCluesBegin(c, r.max+2-c.begin)
 				}
@@ -418,7 +417,7 @@ LoopEnd:
 				iRange = len(rs) - 1
 				continue LoopEnd
 			} else {
-				c.print("updateCluesForRanges End case 5")
+				//c.print("updateCluesForRanges End case 5")
 				// we try to find a set of ranges that fit
 				var concat *Range
 				iRange--
@@ -438,16 +437,15 @@ LoopEnd:
 				}
 				for concat.min > c.begin {
 					if l.isSolved(concat) {
-						concat.print("updateCluesForRanges End case 6")
+						//concat.print("updateCluesForRanges End case 6")
 						if c.begin < concat.max+2 {
 							l.incrementCluesBegin(c, concat.max+2-c.begin)
 						}
-						//Pause()
 						iClue = l.ce
 						iRange = len(rs) - 1
 						continue LoopEnd
 					}
-					concat.print("updateCluesForRanges End case 7")
+					//concat.print("updateCluesForRanges End case 7")
 					iRange--
 					if iRange >= 0 {
 						concat = &Range{min: rs[iRange].min, max: r.max}

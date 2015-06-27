@@ -20,7 +20,7 @@ type Griddler struct {
 	solveQueue    chan (*Square)
 }
 
-func NewGriddler() *Griddler {
+func New() *Griddler {
 	g := &Griddler{
 		lStack:        Stack{},
 		cStack:        Stack{},
@@ -123,17 +123,7 @@ func (g *Griddler) Load(filename string) error {
 
 func (g *Griddler) Show() {
 	g.showColumnHeader()
-	for i := 0; i < g.height; i++ {
-		fmt.Printf("%2d |", i)
-		for j := 0; j < g.width; j++ {
-			g.lines[i].squares[j].show()
-		}
-		fmt.Printf("| %-2d", i)
-		if g.lines[i].isDone {
-			fmt.Printf(" D")
-		}
-		fmt.Println()
-	}
+	g.showBody()
 	g.showColumnFooter()
 }
 
@@ -153,6 +143,20 @@ func (g *Griddler) showColumnHeader() {
 		fmt.Printf("-")
 	}
 	fmt.Println("+")
+}
+
+func (g *Griddler) showBody() {
+	for i := 0; i < g.height; i++ {
+		fmt.Printf("%2d |", i+1)
+		for j := 0; j < g.width; j++ {
+			g.lines[i].squares[j].show()
+		}
+		fmt.Printf("| %-2d", i+1)
+		if g.lines[i].isDone {
+			fmt.Printf(" D")
+		}
+		fmt.Println()
+	}
 }
 
 func (g *Griddler) showColumnFooter() {
@@ -201,7 +205,7 @@ func (g *Griddler) initBoard() {
 	g.solveQueue = make(chan (*Square), g.width*g.height)
 }
 
-func (g *Griddler) setValue(s *Square, val int) {
+func (g *Griddler) SetValue(s *Square, val int) {
 	if s.val == EMPTY {
 		s.val = val
 		g.lStack.push(g.lines[s.x])
@@ -215,7 +219,7 @@ func (g *Griddler) setValue(s *Square, val int) {
 		}
 		fmt.Printf("FOUND (%d,%d)\n", s.x+1, s.y+1)
 		g.solveQueue <- s
-		g.Show()
+		//g.Show()
 		//Pause()
 	}
 }
@@ -258,14 +262,14 @@ func (g *Griddler) solveLine(l *Line) {
 	// if we found all clues, we can blank all remaining square
 	if l.sumClues == l.totalClues {
 		for _, s := range l.squares {
-			g.setValue(s, BLANK)
+			g.SetValue(s, BLANK)
 		}
 		return
 	}
 	// if we found all blanks, we can set the remaining clues
 	if l.sumBlanks == l.length-l.totalClues {
 		for _, s := range l.squares {
-			g.setValue(s, FILLED)
+			g.SetValue(s, FILLED)
 		}
 		return
 	}
