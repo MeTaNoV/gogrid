@@ -49,7 +49,6 @@ func (l *Line) incrementBlanks() {
 	l.sumBlanks++
 	if (l.sumBlanks+l.sumClues) == l.length && !l.isDone {
 		l.isDone = true
-		l.g.incrementSolvedLines()
 	}
 }
 
@@ -57,7 +56,6 @@ func (l *Line) incrementClues() {
 	l.sumClues++
 	if (l.sumBlanks+l.sumClues) == l.length && !l.isDone {
 		l.isDone = true
-		l.g.incrementSolvedLines()
 	}
 }
 

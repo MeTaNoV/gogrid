@@ -9,26 +9,22 @@ import (
 )
 
 type Griddler struct {
-	width          int
-	height         int
-	lines          [](*Line)
-	columns        [](*Line)
-	sumSolvedLines int
-	isDone         bool
-	solveInitAlgo  Algorithm
-	solveAlgos     []Algorithm
-	lStack         Stack
-	cStack         Stack
-	solveQueue     chan (*Square)
+	width         int
+	height        int
+	lines         [](*Line)
+	columns       [](*Line)
+	lStack        Stack
+	cStack        Stack
+	solveInitAlgo Algorithm
+	solveAlgos    []Algorithm
+	solveQueue    chan (*Square)
 }
 
 func NewGriddler() *Griddler {
 	g := &Griddler{
-		sumSolvedLines: 0,
-		isDone:         false,
-		lStack:         Stack{},
-		cStack:         Stack{},
-		solveInitAlgo:  solveInitAlgo,
+		lStack:        Stack{},
+		cStack:        Stack{},
+		solveInitAlgo: solveInitAlgo,
 		solveAlgos: []Algorithm{
 			solveFilledRanges,
 			solveEmptyRanges,
@@ -48,15 +44,15 @@ func (g *Griddler) error(e error, l int) error {
 }
 
 func (g *Griddler) Load(filename string) error {
+	// Loading the specified file
 	gFile, err := os.Open(filename)
 	if err != nil {
 		return err
 	}
 	defer gFile.Close()
 
-	gScanner := bufio.NewScanner(gFile)
-
 	// Reading the griddler size on the first line
+	gScanner := bufio.NewScanner(gFile)
 	gScanner.Scan()
 	firstLine := gScanner.Text()
 	firstLineSize := strings.Split(firstLine, "x")
@@ -75,7 +71,7 @@ func (g *Griddler) Load(filename string) error {
 	g.height = height
 	g.initBoard()
 
-	// Reading the clue line until the end of the file
+	// Reading the clue lines until the end of the file
 	line := 1
 	for gScanner.Scan() {
 		line++
@@ -179,11 +175,11 @@ func (g *Griddler) initBoard() {
 }
 
 func (g *Griddler) setValue(s *Square, val int) {
-	if s.val == 0 {
+	if s.val == EMPTY {
 		s.val = val
 		g.lStack.push(g.lines[s.x])
 		g.cStack.push(g.columns[s.y])
-		if val == 2 {
+		if val == FILLED {
 			g.lines[s.x].incrementClues()
 			g.columns[s.y].incrementClues()
 		} else {
@@ -194,13 +190,6 @@ func (g *Griddler) setValue(s *Square, val int) {
 		g.solveQueue <- s
 		g.Show()
 		//Pause()
-	}
-}
-
-func (g *Griddler) incrementSolvedLines() {
-	g.sumSolvedLines++
-	if g.sumSolvedLines == g.width+g.height {
-		g.isDone = true
 	}
 }
 
@@ -222,7 +211,7 @@ func (g *Griddler) Solve() {
 		l = g.lStack.pop()
 		c = g.cStack.pop()
 	}
-	if g.isDone {
+	if g.isDone() {
 		fmt.Println("Griddler completed!!!")
 	} else {
 		fmt.Println("Griddler uncompleted, find new search algorithm!")
@@ -263,7 +252,21 @@ func (g *Griddler) solveLine(l *Line) {
 	}
 }
 
-// TODO: try & error case on the borders, one with the line empty, the other with some clue found
+func (g *Griddler) isDone() bool {
+	for _, l := range g.lines {
+		if !l.isDone {
+			return false
+		}
+	}
+	for _, c := range g.columns {
+		if !c.isDone {
+			return false
+		}
+	}
+	return true
+}
+
 // TODO: evaluate the refactor of the code to be able to use range operator, mostly clues need to be double in reverse
+// TODO: try & error case on the borders, one with the line empty, the other with some clue found
 // TODO: for all algorith, the way of modifying a value will be different in normal solving or trial & error,
 // therefore, we should be able to have this in parameter
