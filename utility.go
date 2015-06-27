@@ -2,6 +2,7 @@ package griddler
 
 import (
 	"fmt"
+	"math"
 	"os"
 )
 
@@ -26,7 +27,7 @@ func min(a, b int) int {
 }
 
 func maxLength(cs [](*Clue)) int {
-	result := cs[0].length
+	result := 0
 	for _, c := range cs {
 		result = max(result, c.length)
 	}
@@ -34,7 +35,7 @@ func maxLength(cs [](*Clue)) int {
 }
 
 func minLength(cs [](*Clue)) int {
-	result := cs[0].length
+	result := math.MaxUint8 // support of lines of length 256
 	for _, c := range cs {
 		result = min(result, c.length)
 	}

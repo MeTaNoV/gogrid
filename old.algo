@@ -387,3 +387,151 @@ func checkClueAlgo4(g *Griddler, c *Clue, ri int, rsg [](*Range)) {
 	}
 }
 
+// algo 5, check finished ranged and try to find the corresponding clue from beginning or end to fill some blank
+// e.g. ....0X0...0X0....X.X... for a (1,1,4) clue list will enable to blank the first 4 square
+func solveFinishedRanges(g *Griddler, l *Line) {
+	rs := l.solvedRanges()
+	if len(rs) == 0 {
+		return
+	}
+
+	for _, r := range rs {
+		r.print("solveFinishedRanges")
+	}
+
+	//Pause()
+
+	// we want to map the solved group to clues and see if the first or last clue are among those for all possible mapping
+	// if this is the case, we can blank and resolve those!
+	// to verify that, we only have to check that the first/last clue is in the first/last range available
+	// and that no other mapping is possible, i.e. if we find another mapping, it fails
+	cbeg := l.clues[l.cb]
+	// if the first clue contains the first range, we can proceed further
+	if cbeg.begin <= rs[0].min && cbeg.end >= rs[0].max && cbeg.length == rs[0].length() {
+		cbeg.print("cbeg")
+		isFound := false
+		lastIndex := cbeg.index
+		// we check if we found a possible mapping without the first clue
+		for _, r := range rs {
+			isFound = false
+			r.print("r")
+			for _, c := range l.clues[lastIndex+1 : l.ce+1] {
+				if c.begin <= r.min && c.end >= r.max && c.length == r.length() {
+					c.print("c")
+					isFound = true
+					lastIndex = c.index
+					break
+				}
+			}
+		}
+		// if not found, the first range is the first clue!
+		if !isFound {
+			fmt.Println("A5 Checking solved group mapping:")
+			fmt.Println("A5 From beginning:")
+
+			for i := 0; i < rs[0].min-1; i++ {
+				g.setValue(l.squares[i], 1)
+			}
+			cbeg.isDone = true
+			l.incrementCluesBegin(cbeg, rs[0].min-cbeg.begin)
+			l.updateCluesIndexes(cbeg)
+		}
+	}
+
+	//Pause()
+
+	cend := l.clues[l.ce]
+	// if the last clue contains the last range, we can proceed further
+	if cend.begin <= rs[len(rs)-1].min && cend.end >= rs[len(rs)-1].max && cend.length == rs[len(rs)-1].length() {
+		isFound := false
+		lastIndex := cend.index
+		// we check if we found a possible mapping without the first clue
+		for i := len(rs); i > 0; i-- {
+			r := rs[i-1]
+			isFound = false
+			for j := lastIndex - 1; j >= l.cb; j-- {
+				c := l.clues[j]
+				if c.begin <= r.min && c.end >= r.max && c.length == r.length() {
+					isFound = true
+					lastIndex = c.index
+					break
+				}
+			}
+		}
+		// if not found, the first range is the first clue!
+		if !isFound {
+			fmt.Println("A5 Checking solved group mapping:")
+			fmt.Println("A5 From end:")
+			for i := l.length - 1; i > rs[len(rs)-1].max+1; i-- {
+				g.setValue(l.squares[i], 1)
+			}
+			cend.isDone = true
+			l.decrementCluesEnd(cend, cend.end-rs[len(rs)-1].max)
+			l.updateCluesIndexes(cend)
+		}
+	}
+
+	//Pause()
+}
+
+// TODO refactor this function...
+func (l *Line) check1to1Mapping(rs [](*Range)) bool {
+	// first we check the mapping in increasing order
+	//fmt.Printf("\nA4 Checking begin:")
+	c := l.clues[l.cb] // current clue
+	mapping := make(map[*Clue](*Range), len(l.clues))
+	for i := 0; i < len(rs); i++ {
+		r := rs[i]
+		// fmt.Printf("\nClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
+		// fmt.Printf("\nRange(b:%d,e:%d):", r.min, r.max)
+		if mapping[c] != nil {
+			if c.length < r.max-mapping[c].min+1 {
+				// if we didn't reach the last available clue
+				if c.index < l.ce {
+					c = l.clues[c.index+1]
+					//fmt.Printf("\nNextClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
+				} else {
+					return false
+				}
+			} else {
+				// TODO: think about how to deal with a non perfect mapping...
+				return false
+			}
+		} else {
+			mapping[c] = r
+		}
+	}
+
+	// if it was successful, we check in decreasing order
+	if c.index == l.ce {
+		//fmt.Printf("\nA4 Checking end:")
+		c = l.clues[l.ce] // current clue
+		mapping := make(map[*Clue](*Range), len(l.clues))
+		for i := len(rs); i > 0; i-- {
+			r := rs[i-1]
+			// fmt.Printf("\nClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
+			// fmt.Printf("\nRange(b:%d,e:%d):", r.min, r.max)
+			if mapping[c] != nil {
+				if c.length < mapping[c].max-r.min+1 {
+					// if we didn't reach the last available clue
+					if c.index > l.cb {
+						c = l.clues[c.index-1]
+						//fmt.Printf("\nNextClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
+					} else {
+						return false
+					}
+				} else {
+					// TODO: think about how to deal with a non perfect mapping...
+					return false
+				}
+			} else {
+				mapping[c] = r
+			}
+		}
+	} else {
+		return false
+	}
+
+	//fmt.Printf("\nA4 Checking result (cb:%d, ce:%d, ci:%d): %t", l.cb, l.ce, c.index, c.index == l.cb)
+	return c.index == l.cb
+}

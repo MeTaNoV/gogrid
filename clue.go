@@ -27,7 +27,7 @@ func (c *Clue) solveOverlap() {
 	diff := c.begin + c.length - (c.end + 1 - c.length)
 	if diff > 0 {
 		for j := 0; j < diff; j++ {
-			c.l.g.setValue(c.l.squares[c.end-c.length+1+j], 2)
+			c.l.g.setValue(c.l.squares[c.end-c.length+1+j], FILLED)
 		}
 	}
 }
@@ -74,7 +74,7 @@ func (c *Clue) solveCompleteness() {
 		// flag the clue
 		c.isDone = true
 		// update line clue indexes
-		c.l.updateCluesIndexes(c)
+		c.l.updateClueIndexes(c)
 	}
 }
 

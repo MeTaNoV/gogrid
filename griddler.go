@@ -31,15 +31,10 @@ func NewGriddler() *Griddler {
 		solveInitAlgo:  solveInitAlgo,
 		solveAlgos: []Algorithm{
 			solveFilledRanges,
-			solveFinishedRanges,
 			solveEmptyRanges,
-			//solveAlgo2,
-			//solveAlgo3,
-			//solveAlgo4,
-			//solveAlgo5,
-			//solveAlgo6,
-			//solveAlgo7,
-			//solveAlgo8,
+			solveAlgo6,
+			solveAlgo7,
+			solveAlgo8,
 		},
 	}
 	return g
@@ -232,14 +227,14 @@ func (g *Griddler) solveLine(l *Line) {
 	// if we found all clues, we can blank all remaining square
 	if l.sumClues == l.totalClues {
 		for _, s := range l.squares {
-			g.setValue(s, 1)
+			g.setValue(s, BLANK)
 		}
 		return
 	}
 	// if we found all blanks, we can set the remaining clues
 	if l.sumBlanks == l.length-l.totalClues {
 		for _, s := range l.squares {
-			g.setValue(s, 2)
+			g.setValue(s, FILLED)
 		}
 		return
 	}

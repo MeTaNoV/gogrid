@@ -48,7 +48,7 @@ func (l *Line) addClues(cs [](*Clue)) {
 func (l *Line) incrementBlanks() {
 	l.sumBlanks++
 	if (l.sumBlanks+l.sumClues) == l.length && !l.isDone {
-		fmt.Printf("Line/Column %d solved!!!\n", l.index+1)
+		//fmt.Printf("Line/Column %d solved!!!\n", l.index+1)
 		l.isDone = true
 		l.g.incrementSolvedLines()
 	}
@@ -57,7 +57,7 @@ func (l *Line) incrementBlanks() {
 func (l *Line) incrementClues() {
 	l.sumClues++
 	if (l.sumBlanks+l.sumClues) == l.length && !l.isDone {
-		fmt.Printf("Line/Column %d solved!!!\n", l.index+1)
+		//fmt.Printf("Line/Column %d solved!!!\n", l.index+1)
 		l.isDone = true
 		l.g.incrementSolvedLines()
 	}
@@ -77,12 +77,12 @@ func (l *Line) incrementCluesBegin(begC *Clue, n int) {
 		switch {
 		case i == index:
 			l.clues[i].begin += n
-			l.clues[i].print("incrementCluesBegin")
+			//l.clues[i].print("incrementCluesBegin")
 		case i > index:
 			// in case the current clue is already further, we will exit
 			if l.clues[i-1].begin+l.clues[i-1].length+1 > l.clues[i].begin {
 				l.clues[i].begin = l.clues[i-1].begin + l.clues[i-1].length + 1
-				l.clues[i].print("incrementCluesBegin")
+				//l.clues[i].print("incrementCluesBegin")
 			} else {
 				return
 			}
@@ -96,12 +96,12 @@ func (l *Line) decrementCluesEnd(endC *Clue, n int) {
 		switch {
 		case i == index:
 			l.clues[i].end -= n
-			l.clues[i].print("decrementCluesEnd")
+			//l.clues[i].print("decrementCluesEnd")
 		case i < index:
 			// in case the current clue is already further, we will exit
 			if l.clues[i+1].end-l.clues[i+1].length-1 < l.clues[i].end {
 				l.clues[i].end = l.clues[i+1].end - l.clues[i+1].length - 1
-				l.clues[i].print("decrementCluesEnd")
+				//l.clues[i].print("decrementCluesEnd")
 			} else {
 				return
 			}
@@ -109,14 +109,17 @@ func (l *Line) decrementCluesEnd(endC *Clue, n int) {
 	}
 }
 
-func (l *Line) updateCluesIndexes(c *Clue) {
-	if c.index == l.cb {
-		l.cb++
+func (l *Line) updateClueIndexes(c *Clue) {
+	if l.cb != l.ce {
+		//l.print("updateClueIndexes")
+		if c.index == l.cb {
+			l.cb++
+		}
+		if c.index == l.ce {
+			l.ce--
+		}
+		//l.print("updateClueIndexes")
 	}
-	if c.index == l.ce {
-		l.ce--
-	}
-	l.print("updateCluesIndexes")
 }
 
 func (l *Line) checkRangeForValue(value int, min, max int) bool {
@@ -131,7 +134,17 @@ func (l *Line) checkRangeForValue(value int, min, max int) bool {
 	return true
 }
 
-func (l *Line) getRanges() [](*Range) {
+func (l *Line) isSolved(r *Range) bool {
+	if r.min == 0 {
+		return l.squares[r.max+1].val == BLANK
+	}
+	if r.max == l.length-1 {
+		return l.squares[r.min-1].val == BLANK
+	}
+	return l.squares[r.max+1].val == BLANK && l.squares[r.min-1].val == BLANK
+}
+
+func (l *Line) getAllRanges() [](*Range) {
 	lastVal := EMPTY
 	min, max := 0, 0
 	result := make([](*Range), 0)
@@ -162,8 +175,8 @@ func (l *Line) getRanges() [](*Range) {
 	return result
 }
 
-func (l *Line) unsolvedRanges() [](*Range) {
-	lastVal := 0
+func (l *Line) getUnsolvedRanges() [](*Range) {
+	lastVal := EMPTY
 	min, max := 0, 0
 	result := make([](*Range), 0)
 
@@ -196,8 +209,8 @@ func (l *Line) unsolvedRanges() [](*Range) {
 	return result
 }
 
-func (l *Line) solvedRanges() [](*Range) {
-	lastVal := 0
+func (l *Line) getSolvedRanges() [](*Range) {
+	lastVal := EMPTY
 	min, max := 0, 0
 	result := make([](*Range), 0)
 
@@ -229,9 +242,44 @@ func (l *Line) solvedRanges() [](*Range) {
 	return result
 }
 
+func (l *Line) getEmptyRanges() [](*Range) {
+	lastVal := -1
+	min, max := 0, 0
+	result := make([](*Range), 0)
+
+	// we can start from the first non solved clue +1 up to the last non solved one
+	for i := l.clues[l.cb].begin; i <= l.clues[l.ce].end; i++ {
+		s := l.squares[i]
+		switch {
+		case s.val == EMPTY:
+			if lastVal != s.val {
+				// new one
+				min = i
+			}
+			if i == l.clues[l.ce].end && (min == l.clues[l.cb].begin || l.squares[min-1].val == BLANK) {
+				max = i
+				result = append(result, &Range{min: min, max: max})
+			}
+		case s.val == BLANK:
+			if lastVal == EMPTY {
+				max = i - 1
+				if min == l.clues[l.cb].begin || l.squares[min-1].val == BLANK {
+					result = append(result, &Range{min: min, max: max})
+				}
+			}
+		case s.val == FILLED:
+		}
+		lastVal = s.val
+	}
+
+	return result
+}
+
 func (l *Line) updateCluesForRanges(rs [](*Range)) {
 	// the presence of filled Range on a line introduce limit constraints om clues that
 	// we are performing on a 2-pass phase from the beginning and from the end
+
+	l.print("updateCluesForRanges")
 
 	// From beginning
 	iClue := l.cb
@@ -247,15 +295,16 @@ LoopBegin:
 		}
 
 		r.print("updateCluesForRanges Begin")
-		c.print("updateCluesForRanges Begin")
 
 		switch {
 		// if the clue does not fit, we can decrement its end  ......XX.. with (1,2)
 		case c.length < r.length():
-			if c.end > r.min+2 {
-				l.decrementCluesEnd(c, c.end-r.min-2)
+			c.print("updateCluesForRanges Begin case 1")
+			if c.end > r.min-2 {
+				l.decrementCluesEnd(c, c.end-r.min+2)
 			}
 		case c.length == r.length():
+			c.print("updateCluesForRanges Begin case 2")
 			// if it fits exactly, we can decrement its end
 			if c.end > r.min+c.length-1 {
 				l.decrementCluesEnd(c, c.end-(r.min+c.length-1))
@@ -266,40 +315,61 @@ LoopBegin:
 			if c.end > r.min+c.length-1 {
 				l.decrementCluesEnd(c, c.end-(r.min+c.length-1))
 			}
-			if iRange == len(rs)-1 {
-				iRange++
-				continue LoopBegin
-			}
 			// if the range is solved, it is impossible to fit, so we decrement its end and reset
-			if l.squares[r.max+1].val == BLANK {
-				if c.end > r.min+2 {
-					l.decrementCluesEnd(c, c.end-r.min-2)
+			if l.isSolved(r) {
+				c.print("updateCluesForRanges Begin case 4")
+				if c.end > r.min-2 {
+					l.decrementCluesEnd(c, c.end-r.min+2)
 				}
-				Pause()
+				//Pause()
 				iClue = l.cb
 				iRange = 0
 				continue LoopBegin
 			} else {
+				//c.print("updateCluesForRanges Begin case 5")
 				// we try to find a set of ranges that fit
-				for r.max <= c.end {
-					if iRange == len(rs)-1 {
-						iRange++
-						continue LoopBegin
+				var concat *Range
+				iRange++
+				if iRange < len(rs) {
+					concat = &Range{min: r.min, max: rs[iRange].max}
+					r = rs[iRange]
+				} else {
+					break
+				}
+				if concat.max == c.end {
+					iRange++
+					if iRange < len(rs) {
+						r = rs[iRange]
 					}
-					if l.squares[r.max+1].val == BLANK {
-						if c.end > r.min+2 {
-							l.decrementCluesEnd(c, c.end-r.min-2)
+					iClue++
+					continue LoopBegin
+				}
+				for concat.max < c.end {
+					if l.isSolved(concat) {
+						concat.print("updateCluesForRanges Begin case 6")
+						if c.end > concat.min-2 {
+							l.decrementCluesEnd(c, c.end-concat.min+2)
 						}
-						Pause()
+						//Pause()
 						iClue = l.cb
 						iRange = 0
 						continue LoopBegin
 					}
+					concat.print("updateCluesForRanges Begin case 7")
 					iRange++
 					if iRange < len(rs) {
+						concat = &Range{min: r.min, max: rs[iRange].max}
 						r = rs[iRange]
 					} else {
 						break
+					}
+					if concat.max == c.end {
+						iRange++
+						if iRange < len(rs) {
+							r = rs[iRange]
+						}
+						iClue++
+						continue LoopBegin
 					}
 				}
 			}
@@ -321,15 +391,16 @@ LoopEnd:
 		}
 
 		r.print("updateCluesForRanges End")
-		c.print("updateCluesForRanges End")
 
 		switch {
 		// if the clue does not fit, we can decrement its end  ......XX.. with (1,2)
 		case c.length < r.length():
-			if c.begin < r.max-2 {
-				l.incrementCluesBegin(c, r.max-2-c.begin)
+			c.print("updateCluesForRanges End case 1")
+			if c.begin < r.max+2 {
+				l.incrementCluesBegin(c, r.max+2-c.begin)
 			}
 		case c.length == r.length():
+			c.print("updateCluesForRanges End case 2")
 			// if it fits exactly, we can decrement its end
 			if c.begin < r.max-c.length+1 {
 				l.incrementCluesBegin(c, r.max-c.length+1-c.begin)
@@ -340,40 +411,61 @@ LoopEnd:
 			if c.begin < r.max-c.length+1 {
 				l.incrementCluesBegin(c, r.max-c.length+1-c.begin)
 			}
-			if iRange == 0 {
-				iRange--
-				continue LoopEnd
-			}
 			// if the range is solved, it is impossible to fit, so we decrement its end and reset
-			if l.squares[r.min-1].val == BLANK {
-				if c.begin > r.max-2 {
-					l.incrementCluesBegin(c, r.max-2-c.begin)
+			if l.isSolved(r) {
+				c.print("updateCluesForRanges End case 4")
+				if c.begin < r.max+2 {
+					l.incrementCluesBegin(c, r.max+2-c.begin)
 				}
-				Pause()
+				//Pause()
 				iClue = l.ce
 				iRange = len(rs) - 1
 				continue LoopEnd
 			} else {
+				c.print("updateCluesForRanges End case 5")
 				// we try to find a set of ranges that fit
-				for r.min >= c.begin {
-					if iRange == 0 {
-						iRange--
-						continue LoopEnd
+				var concat *Range
+				iRange--
+				if iRange >= 0 {
+					concat = &Range{min: rs[iRange].min, max: r.max}
+					r = rs[iRange]
+				} else {
+					break
+				}
+				if concat.min == c.begin {
+					iRange--
+					if iRange >= 0 {
+						r = rs[iRange]
 					}
-					if l.squares[r.min-1].val == BLANK {
-						if c.begin > r.max-2 {
-							l.incrementCluesBegin(c, r.max-2-c.begin)
+					iClue--
+					continue LoopEnd
+				}
+				for concat.min > c.begin {
+					if l.isSolved(concat) {
+						concat.print("updateCluesForRanges End case 6")
+						if c.begin < concat.max+2 {
+							l.incrementCluesBegin(c, concat.max+2-c.begin)
 						}
-						Pause()
+						//Pause()
 						iClue = l.ce
 						iRange = len(rs) - 1
 						continue LoopEnd
 					}
+					concat.print("updateCluesForRanges End case 7")
 					iRange--
 					if iRange >= 0 {
+						concat = &Range{min: rs[iRange].min, max: r.max}
 						r = rs[iRange]
 					} else {
 						break
+					}
+					if concat.min == c.begin {
+						iRange--
+						if iRange >= 0 {
+							r = rs[iRange]
+						}
+						iClue--
+						continue LoopEnd
 					}
 				}
 			}
@@ -404,6 +496,20 @@ func (l *Line) getExactCluesForRange(r *Range) [](*Clue) {
 	return cs
 }
 
+func (l *Line) getCluesForEmptyRange(r *Range) [](*Clue) {
+	cs := make([](*Clue), 0)
+	for _, c := range l.clues[l.cb : l.ce+1] {
+		if c.begin <= r.min && c.end > r.min {
+			cs = append(cs, c)
+		}
+		if c.begin < r.max && c.end >= r.max {
+			cs = append(cs, c)
+		}
+	}
+
+	return cs
+}
+
 func (l *Line) getStepToNextBlank(r *Range, reverse bool) (bool, int) {
 	var i int
 
@@ -427,66 +533,4 @@ func (l *Line) getStepToNextBlank(r *Range, reverse bool) (bool, int) {
 		i = IncOrDec(i, reverse)
 	}
 	return false, result
-}
-
-// TODO refactor this function...
-func (l *Line) check1to1Mapping(rs [](*Range)) bool {
-	// first we check the mapping in increasing order
-	//fmt.Printf("\nA4 Checking begin:")
-	c := l.clues[l.cb] // current clue
-	mapping := make(map[*Clue](*Range), len(l.clues))
-	for i := 0; i < len(rs); i++ {
-		r := rs[i]
-		// fmt.Printf("\nClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
-		// fmt.Printf("\nRange(b:%d,e:%d):", r.min, r.max)
-		if mapping[c] != nil {
-			if c.length < r.max-mapping[c].min+1 {
-				// if we didn't reach the last available clue
-				if c.index < l.ce {
-					c = l.clues[c.index+1]
-					//fmt.Printf("\nNextClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
-				} else {
-					return false
-				}
-			} else {
-				// TODO: think about how to deal with a non perfect mapping...
-				return false
-			}
-		} else {
-			mapping[c] = r
-		}
-	}
-
-	// if it was successful, we check in decreasing order
-	if c.index == l.ce {
-		//fmt.Printf("\nA4 Checking end:")
-		c = l.clues[l.ce] // current clue
-		mapping := make(map[*Clue](*Range), len(l.clues))
-		for i := len(rs); i > 0; i-- {
-			r := rs[i-1]
-			// fmt.Printf("\nClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
-			// fmt.Printf("\nRange(b:%d,e:%d):", r.min, r.max)
-			if mapping[c] != nil {
-				if c.length < mapping[c].max-r.min+1 {
-					// if we didn't reach the last available clue
-					if c.index > l.cb {
-						c = l.clues[c.index-1]
-						//fmt.Printf("\nNextClue(n:%d,b:%d,e:%d,l:%d):", c.index+1, c.begin+1, c.end+1, c.length)
-					} else {
-						return false
-					}
-				} else {
-					// TODO: think about how to deal with a non perfect mapping...
-					return false
-				}
-			} else {
-				mapping[c] = r
-			}
-		}
-	} else {
-		return false
-	}
-
-	//fmt.Printf("\nA4 Checking result (cb:%d, ce:%d, ci:%d): %t", l.cb, l.ce, c.index, c.index == l.cb)
-	return c.index == l.cb
 }
