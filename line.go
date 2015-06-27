@@ -48,7 +48,6 @@ func (l *Line) addClues(cs [](*Clue)) {
 func (l *Line) incrementBlanks() {
 	l.sumBlanks++
 	if (l.sumBlanks+l.sumClues) == l.length && !l.isDone {
-		//fmt.Printf("Line/Column %d solved!!!\n", l.index+1)
 		l.isDone = true
 		l.g.incrementSolvedLines()
 	}
@@ -57,7 +56,6 @@ func (l *Line) incrementBlanks() {
 func (l *Line) incrementClues() {
 	l.sumClues++
 	if (l.sumBlanks+l.sumClues) == l.length && !l.isDone {
-		//fmt.Printf("Line/Column %d solved!!!\n", l.index+1)
 		l.isDone = true
 		l.g.incrementSolvedLines()
 	}

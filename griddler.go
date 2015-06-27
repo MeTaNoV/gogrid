@@ -120,28 +120,43 @@ func (g *Griddler) Load(filename string) error {
 }
 
 func (g *Griddler) Show() {
+	fmt.Printf("    ")
+	for i := 0; i < g.width; i++ {
+		fmt.Printf("%d", (i+1)%10)
+	}
+	fmt.Println()
 	for i := 0; i < g.height+2; i++ {
 		if i == 0 || i == g.height+1 {
-			fmt.Printf("+")
+			fmt.Printf("   +")
 			for j := 0; j < g.width; j++ {
 				fmt.Printf("-")
 			}
 			fmt.Println("+")
 		} else {
-			fmt.Printf("|")
+			fmt.Printf("%2d |", i)
 			for j := 0; j < g.width; j++ {
 				g.lines[i-1].squares[j].show()
 			}
-			fmt.Printf("| %d\n", i)
-			//fmt.Printf("(%d,%d,%t)\n", g.lines[i-1].sum, g.lines[i-1].sumClues, g.lines[i-1].isDone)
+			fmt.Printf("| %-2d", i)
+			if g.lines[i-1].isDone {
+				fmt.Printf(" D")
+			}
+			fmt.Println()
 		}
 	}
-	fmt.Printf(" ")
+	fmt.Printf("    ")
 	for i := 0; i < g.width; i++ {
 		fmt.Printf("%d", (i+1)%10)
-		//fmt.Printf("(%d,%d,%t)\n", g.columns[i].sum, g.columns[i].sumClues, g.columns[i].isDone)
 	}
-	//fmt.Printf("\nLines completed: %d", g.sum)
+	fmt.Println()
+	fmt.Printf("    ")
+	for i := 0; i < g.width; i++ {
+		if g.columns[i].isDone {
+			fmt.Printf("D")
+		} else {
+			fmt.Printf(" ")
+		}
+	}
 	fmt.Println()
 }
 
@@ -248,15 +263,7 @@ func (g *Griddler) solveLine(l *Line) {
 	}
 }
 
-// TODO: similar to algo 5, check empty surrounded by blank that does not fit any clue in size
-// verify that it is not already covered by algo 2..., or somehow badly implemented
-// TODO: find a general use-case to be able to solve this pattern:
-// ......XX.X00.000 with (4,1) -> we can blank the beginning
-// TODO: find a general use-case to be able to solve this pattern:
-// ......X.X...... with (2,2) 3 is not possible, leading to a blank
 // TODO: try & error case on the borders, one with the line empty, the other with some clue found
-// TODO: refactor the whole function to suppress from the boolean returned to print the summary of execution for example,
-// exception in setValue() will be used to check a bad line solving during trial&error
 // TODO: evaluate the refactor of the code to be able to use range operator, mostly clues need to be double in reverse
 // TODO: for all algorith, the way of modifying a value will be different in normal solving or trial & error,
 // therefore, we should be able to have this in parameter
