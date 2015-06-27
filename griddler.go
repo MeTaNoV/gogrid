@@ -55,24 +55,30 @@ func (g *Griddler) Load(filename string) error {
 	gScanner := bufio.NewScanner(gFile)
 	gScanner.Scan()
 	firstLine := gScanner.Text()
-	firstLineSize := strings.Split(firstLine, "x")
-	if len(firstLineSize) != 2 {
-		return g.error(ErrInvalidGridSizeFormat, 1)
+
+	// the line should have the format AAAxBBB where AAA is the width and BBB the height
+	line := 1
+	firstLineSizes := strings.Split(firstLine, "x")
+	if len(firstLineSizes) != 2 {
+		return g.error(ErrInvalidGridSizeFormat, line)
 	}
-	width, err := strconv.Atoi(firstLineSize[0])
+
+	width, err := strconv.Atoi(firstLineSizes[0])
 	if err != nil {
-		return g.error(ErrInvalidGridSizeValue, 1)
+		return g.error(ErrInvalidGridSizeValue, line)
 	}
 	g.width = width
-	height, err := strconv.Atoi(firstLineSize[1])
+
+	height, err := strconv.Atoi(firstLineSizes[1])
 	if err != nil {
-		return g.error(ErrInvalidGridSizeValue, 1)
+		return g.error(ErrInvalidGridSizeValue, line)
 	}
 	g.height = height
+
+	// and init the board with it
 	g.initBoard()
 
 	// Reading the clue lines until the end of the file
-	line := 1
 	for gScanner.Scan() {
 		line++
 		gLine := gScanner.Text()
@@ -100,12 +106,12 @@ func (g *Griddler) Load(filename string) error {
 		switch gLineInfos[0] {
 		case "H":
 			if index > height {
-
+				// TODO error
 			}
 			g.lines[index-1].addClues(gLineNumbers)
 		case "V":
 			if index > width {
-
+				// TODO error
 			}
 			g.columns[index-1].addClues(gLineNumbers)
 		default:
@@ -116,34 +122,55 @@ func (g *Griddler) Load(filename string) error {
 }
 
 func (g *Griddler) Show() {
+	g.showColumnHeader()
+	for i := 0; i < g.height; i++ {
+		fmt.Printf("%2d |", i)
+		for j := 0; j < g.width; j++ {
+			g.lines[i].squares[j].show()
+		}
+		fmt.Printf("| %-2d", i)
+		if g.lines[i].isDone {
+			fmt.Printf(" D")
+		}
+		fmt.Println()
+	}
+	g.showColumnFooter()
+}
+
+func (g *Griddler) showColumnHeader() {
+	fmt.Printf("    ")
+	for i := 0; i < g.width; i++ {
+		fmt.Printf("%d", (i+1)/10)
+	}
+	fmt.Println()
 	fmt.Printf("    ")
 	for i := 0; i < g.width; i++ {
 		fmt.Printf("%d", (i+1)%10)
 	}
 	fmt.Println()
-	for i := 0; i < g.height+2; i++ {
-		if i == 0 || i == g.height+1 {
-			fmt.Printf("   +")
-			for j := 0; j < g.width; j++ {
-				fmt.Printf("-")
-			}
-			fmt.Println("+")
-		} else {
-			fmt.Printf("%2d |", i)
-			for j := 0; j < g.width; j++ {
-				g.lines[i-1].squares[j].show()
-			}
-			fmt.Printf("| %-2d", i)
-			if g.lines[i-1].isDone {
-				fmt.Printf(" D")
-			}
-			fmt.Println()
-		}
+	fmt.Printf("   +")
+	for i := 0; i < g.width; i++ {
+		fmt.Printf("-")
 	}
+	fmt.Println("+")
+}
+
+func (g *Griddler) showColumnFooter() {
+	fmt.Printf("   +")
+	for i := 0; i < g.width; i++ {
+		fmt.Printf("-")
+	}
+	fmt.Println("+")
+	fmt.Printf("    ")
+	for i := 0; i < g.width; i++ {
+		fmt.Printf("%d", (i+1)/10)
+	}
+	fmt.Println()
 	fmt.Printf("    ")
 	for i := 0; i < g.width; i++ {
 		fmt.Printf("%d", (i+1)%10)
 	}
+	fmt.Println()
 	fmt.Println()
 	fmt.Printf("    ")
 	for i := 0; i < g.width; i++ {
