@@ -34,5 +34,5 @@ var (
 )
 
 func (e *SolveError) Error() string {
-	return fmt.Sprintf("Error on square (%d,%d): %s", e.s.x+1, e.s.y+1, e.err)
+	return fmt.Sprintf("Error on line %d, or column %d: %s", e.s.x+1, e.s.y+1, e.err)
 }

@@ -76,9 +76,6 @@ func solveFilledRanges(g *Griddler, l *Line) {
 			c.solveOverlap()
 			c.solveCompleteness()
 		case len(cs) > 1:
-			// for _, c := range cs {
-			// 	c.print("solveFilledRanges")
-			// }
 			// if all potential clues are of the Range size, we can finish it
 			if maxLength(cs) == r.length() {
 				g.SetValue(l.squares[r.min-1], BLANK)

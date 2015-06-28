@@ -65,9 +65,9 @@ func (r *Range) print(prefix string) {
 }
 
 // Special stack implementation where elements are unique
-type Stack [](*Line)
+type lStack [](*Line)
 
-func (st *Stack) push(nste *Line) {
+func (st *lStack) push(nste *Line) {
 	for _, ste := range *st {
 		if ste == nste {
 			return
@@ -76,7 +76,27 @@ func (st *Stack) push(nste *Line) {
 	*st = append(*st, nste)
 }
 
-func (st *Stack) pop() *Line {
+func (st *lStack) pop() *Line {
+	if len(*st) == 0 {
+		return nil
+	}
+	ret := (*st)[len(*st)-1]
+	*st = (*st)[0 : len(*st)-1]
+	return ret
+}
+
+type sStack [](*Square)
+
+func (st *sStack) push(nste *Square) {
+	for _, ste := range *st {
+		if ste == nste {
+			return
+		}
+	}
+	*st = append(*st, nste)
+}
+
+func (st *sStack) pop() *Square {
 	if len(*st) == 0 {
 		return nil
 	}

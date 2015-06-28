@@ -13,17 +13,17 @@ type Griddler struct {
 	height        int
 	lines         [](*Line)
 	columns       [](*Line)
-	lStack        Stack
-	cStack        Stack
+	lStack        lStack
+	cStack        lStack
 	solveInitAlgo Algorithm
 	solveAlgos    []Algorithm
-	solveQueue    chan (*Square)
+	//solveQueue    chan (*Square)
 }
 
 func New() *Griddler {
 	g := &Griddler{
-		lStack:        Stack{},
-		cStack:        Stack{},
+		lStack:        lStack{},
+		cStack:        lStack{},
 		solveInitAlgo: solveInitAlgo,
 		solveAlgos: []Algorithm{
 			solveFilledRanges,
@@ -192,7 +192,7 @@ func (g *Griddler) initBoard() {
 	for i := 0; i < g.height; i++ {
 		g.lines[i] = NewLine(g, i, g.width)
 		for j := 0; j < g.width; j++ {
-			g.lines[i].squares[j] = NewSquare(i, j, 0, g)
+			g.lines[i].squares[j] = NewSquare(i, j, EMPTY)
 		}
 	}
 	g.columns = make([](*Line), g.width)
@@ -202,42 +202,128 @@ func (g *Griddler) initBoard() {
 			g.columns[i].squares[j] = g.lines[j].squares[i]
 		}
 	}
-	g.solveQueue = make(chan (*Square), g.width*g.height)
+	//g.solveQueue = make(chan (*Square), g.width*g.height)
 }
 
-func (g *Griddler) Solve() {
+func (g *Griddler) save() *Griddler {
+	result := *g
+
+	result.lines = make([](*Line), g.height)
+	for i := 0; i < g.height; i++ {
+		result.lines[i] = NewLine(&result, i, g.width)
+		result.lines[i].sumBlanks = g.lines[i].sumBlanks
+		result.lines[i].sumClues = g.lines[i].sumClues
+		result.lines[i].totalClues = g.lines[i].totalClues
+		result.lines[i].cb = g.lines[i].cb
+		result.lines[i].ce = g.lines[i].ce
+		result.lines[i].isDone = g.lines[i].isDone
+		for j := 0; j < g.width; j++ {
+			result.lines[i].squares[j] = NewSquare(i, j, g.lines[i].squares[j].val)
+		}
+		result.lines[i].clues = make([](*Clue), len(g.lines[i].clues))
+		for j := 0; j < len(g.lines[i].clues); j++ {
+			result.lines[i].clues[j] = NewClue(g.lines[i].clues[j].length)
+			result.lines[i].clues[j].l = result.lines[i]
+			result.lines[i].clues[j].index = j
+			result.lines[i].clues[j].begin = g.lines[i].clues[j].begin
+			result.lines[i].clues[j].end = g.lines[i].clues[j].end
+		}
+	}
+
+	result.columns = make([](*Line), g.width)
+	for i := 0; i < g.width; i++ {
+		result.columns[i] = NewLine(&result, i, g.height)
+		result.columns[i].sumBlanks = g.columns[i].sumBlanks
+		result.columns[i].sumClues = g.columns[i].sumClues
+		result.columns[i].totalClues = g.columns[i].totalClues
+		result.columns[i].cb = g.columns[i].cb
+		result.columns[i].ce = g.columns[i].ce
+		result.columns[i].isDone = g.columns[i].isDone
+		for j := 0; j < g.height; j++ {
+			result.columns[i].squares[j] = result.lines[j].squares[i]
+		}
+		result.columns[i].clues = make([](*Clue), len(g.columns[i].clues))
+		for j := 0; j < len(g.columns[i].clues); j++ {
+			result.columns[i].clues[j] = NewClue(g.columns[i].clues[j].length)
+			result.columns[i].clues[j].l = result.columns[i]
+			result.columns[i].clues[j].index = j
+			result.columns[i].clues[j].begin = g.columns[i].clues[j].begin
+			result.columns[i].clues[j].end = g.columns[i].clues[j].end
+		}
+	}
+
+	return &result
+}
+
+func (g *Griddler) restore(clone *Griddler) {
+	for i := 0; i < clone.height; i++ {
+		g.lines[i].sumBlanks = clone.lines[i].sumBlanks
+		g.lines[i].sumClues = clone.lines[i].sumClues
+		g.lines[i].totalClues = clone.lines[i].totalClues
+		g.lines[i].cb = clone.lines[i].cb
+		g.lines[i].ce = clone.lines[i].ce
+		g.lines[i].isDone = clone.lines[i].isDone
+		for j := 0; j < clone.width; j++ {
+			g.lines[i].squares[j].val = clone.lines[i].squares[j].val
+		}
+		for j := 0; j < len(clone.lines[i].clues); j++ {
+			g.lines[i].clues[j].begin = clone.lines[i].clues[j].begin
+			g.lines[i].clues[j].end = clone.lines[i].clues[j].end
+		}
+	}
+
+	for i := 0; i < clone.width; i++ {
+		g.columns[i].sumBlanks = clone.columns[i].sumBlanks
+		g.columns[i].sumClues = clone.columns[i].sumClues
+		g.columns[i].totalClues = clone.columns[i].totalClues
+		g.columns[i].cb = clone.columns[i].cb
+		g.columns[i].ce = clone.columns[i].ce
+		g.columns[i].isDone = clone.columns[i].isDone
+		for j := 0; j < clone.height; j++ {
+			g.columns[i].squares[j] = g.lines[j].squares[i]
+		}
+		for j := 0; j < len(clone.columns[i].clues); j++ {
+			g.columns[i].clues[j].begin = clone.columns[i].clues[j].begin
+			g.columns[i].clues[j].end = clone.columns[i].clues[j].end
+		}
+	}
+}
+
+func (g *Griddler) Solve() bool {
 	g.solveInit()
-	l := g.lStack.pop()
-	c := g.cStack.pop()
-	for l != nil || c != nil {
-		defer func() {
-			if r := recover(); r != nil {
-				if serr, ok := r.(*SolveError); ok {
-					fmt.Printf("Recovered from SolveError: %v ", serr)
-					Pause()
-				} else {
-					panic(r)
+	nbTrial, nbTrialSuccess := 0, 0
+
+	for {
+		g.solveByLogic()
+
+		if !g.isDone() {
+			saved := g.save()
+
+			sst := &sStack{}
+			g.populateForTrial(sst)
+
+			hasError := false
+			for !hasError {
+				s := sst.pop()
+				g.SetValue(g.lines[s.x].squares[s.y], FILLED)
+				hasError = g.solveByTrial()
+				nbTrial++
+				if g.isDone() {
+					break
+				}
+				g.restore(saved)
+				if hasError {
+					nbTrialSuccess++
+					g.SetValue(g.lines[s.x].squares[s.y], BLANK)
 				}
 			}
-		}()
-		if l != nil && !l.isDone {
-			fmt.Printf("\n=================== checking line %d ===================\n", l.index+1)
-			//Pause()
-			g.solveLine(l)
+		} else {
+			break
 		}
-		if c != nil && !c.isDone {
-			fmt.Printf("\n=================== checking column %d ===================\n", c.index+1)
-			//Pause()
-			g.solveLine(c)
-		}
-		l = g.lStack.pop()
-		c = g.cStack.pop()
 	}
-	if g.isDone() {
-		fmt.Println("Griddler completed!!!")
-	} else {
-		fmt.Println("Griddler uncompleted, find new search algorithm!")
-	}
+
+	fmt.Printf("\nTotal trial attempts: %d/%d\n", nbTrialSuccess, nbTrial)
+	return g.isDone()
 }
 
 func (g *Griddler) solveInit() {
@@ -246,6 +332,64 @@ func (g *Griddler) solveInit() {
 	}
 	for _, col := range g.columns {
 		g.solveInitAlgo(g, col)
+	}
+}
+
+func (g *Griddler) solveByLogic() {
+	defer func() {
+		if r := recover(); r != nil {
+			if serr, ok := r.(*SolveError); ok {
+				fmt.Printf("%v", serr)
+				os.Exit(1)
+			} else {
+				panic(r)
+			}
+		}
+	}()
+	g.solveGeneric()
+}
+
+func (g *Griddler) populateForTrial(sst *sStack) {
+	for i := 0; i < g.height; i++ {
+		for j := 0; j < g.lines[i].length; j++ {
+			if g.lines[i].squares[j].val == EMPTY {
+				sst.push(g.lines[i].squares[j])
+			}
+		}
+	}
+}
+
+// TODO add a parameter to indicate the depth of the trial
+func (g *Griddler) solveByTrial() bool {
+	hasError := false
+	defer func() {
+		if r := recover(); r != nil {
+			if _, ok := r.(*SolveError); ok {
+				hasError = true
+			} else {
+				panic(r)
+			}
+		}
+	}()
+	g.solveGeneric()
+
+	return hasError
+}
+
+func (g *Griddler) solveGeneric() {
+	l := g.lStack.pop()
+	c := g.cStack.pop()
+	for l != nil || c != nil {
+		if l != nil && !l.isDone {
+			fmt.Printf("\n=================== checking line %d ===================\n", l.index+1)
+			g.solveLine(l)
+		}
+		if c != nil && !c.isDone {
+			fmt.Printf("\n=================== checking column %d ===================\n", c.index+1)
+			g.solveLine(c)
+		}
+		l = g.lStack.pop()
+		c = g.cStack.pop()
 	}
 }
 
@@ -292,7 +436,7 @@ func (g *Griddler) SetValue(s *Square, val int) {
 			g.columns[s.y].incrementBlanks()
 		}
 		fmt.Printf("FOUND (%d,%d)\n", s.x+1, s.y+1)
-		g.solveQueue <- s
+		//g.solveQueue <- s
 		g.Show()
 		//Pause()
 	case s.val != val:

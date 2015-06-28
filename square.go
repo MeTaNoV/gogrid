@@ -16,7 +16,7 @@ type Square struct {
 	val  int
 }
 
-func NewSquare(x, y, v int, g *Griddler) *Square {
+func NewSquare(x, y, v int) *Square {
 	return &Square{
 		x:   x,
 		y:   y,

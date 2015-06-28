@@ -9,7 +9,6 @@ type Clue struct {
 	index      int
 	length     int
 	begin, end int
-	// isDone     bool
 }
 
 func NewClue(l int) *Clue {
