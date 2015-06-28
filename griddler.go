@@ -205,30 +205,21 @@ func (g *Griddler) initBoard() {
 	g.solveQueue = make(chan (*Square), g.width*g.height)
 }
 
-func (g *Griddler) SetValue(s *Square, val int) {
-	if s.val == EMPTY {
-		s.val = val
-		g.lStack.push(g.lines[s.x])
-		g.cStack.push(g.columns[s.y])
-		if val == FILLED {
-			g.lines[s.x].incrementClues()
-			g.columns[s.y].incrementClues()
-		} else {
-			g.lines[s.x].incrementBlanks()
-			g.columns[s.y].incrementBlanks()
-		}
-		fmt.Printf("FOUND (%d,%d)\n", s.x+1, s.y+1)
-		g.solveQueue <- s
-		//g.Show()
-		//Pause()
-	}
-}
-
 func (g *Griddler) Solve() {
 	g.solveInit()
 	l := g.lStack.pop()
 	c := g.cStack.pop()
 	for l != nil || c != nil {
+		defer func() {
+			if r := recover(); r != nil {
+				if serr, ok := r.(*SolveError); ok {
+					fmt.Printf("Recovered from SolveError: %v ", serr)
+					Pause()
+				} else {
+					panic(r)
+				}
+			}
+		}()
 		if l != nil && !l.isDone {
 			fmt.Printf("\n=================== checking line %d ===================\n", l.index+1)
 			//Pause()
@@ -262,14 +253,18 @@ func (g *Griddler) solveLine(l *Line) {
 	// if we found all clues, we can blank all remaining square
 	if l.sumClues == l.totalClues {
 		for _, s := range l.squares {
-			g.SetValue(s, BLANK)
+			if s.val == EMPTY {
+				g.SetValue(s, BLANK)
+			}
 		}
 		return
 	}
 	// if we found all blanks, we can set the remaining clues
 	if l.sumBlanks == l.length-l.totalClues {
 		for _, s := range l.squares {
-			g.SetValue(s, FILLED)
+			if s.val == EMPTY {
+				g.SetValue(s, FILLED)
+			}
 		}
 		return
 	}
@@ -280,6 +275,28 @@ func (g *Griddler) solveLine(l *Line) {
 		} else {
 			return
 		}
+	}
+}
+
+func (g *Griddler) SetValue(s *Square, val int) {
+	switch {
+	case s.val == EMPTY:
+		s.val = val
+		g.lStack.push(g.lines[s.x])
+		g.cStack.push(g.columns[s.y])
+		if val == FILLED {
+			g.lines[s.x].incrementClues()
+			g.columns[s.y].incrementClues()
+		} else {
+			g.lines[s.x].incrementBlanks()
+			g.columns[s.y].incrementBlanks()
+		}
+		fmt.Printf("FOUND (%d,%d)\n", s.x+1, s.y+1)
+		g.solveQueue <- s
+		g.Show()
+		//Pause()
+	case s.val != val:
+		panic(&SolveError{s, ErrOverridingValue})
 	}
 }
 
@@ -298,6 +315,7 @@ func (g *Griddler) isDone() bool {
 }
 
 // TODO: evaluate the refactor of the code to be able to use range operator, mostly clues need to be double in reverse
+// => try to see if using defer might help in this direction...
 // TODO: try & error case on the borders, one with the line empty, the other with some clue found
 // TODO: for all algorith, the way of modifying a value will be different in normal solving or trial & error,
 // therefore, we should be able to have this in parameter

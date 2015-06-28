@@ -61,8 +61,18 @@ func (l *Line) incrementClues() {
 
 func (l *Line) updateCluesLimits(c *Clue, length int, reverse bool) {
 	if reverse {
+		if c.index == l.ce {
+			for i := 0; i < length; i++ {
+				l.g.SetValue(l.squares[c.end-i], BLANK)
+			}
+		}
 		l.decrementCluesEnd(c, length)
 	} else {
+		if c.index == l.cb {
+			for i := 0; i < length; i++ {
+				l.g.SetValue(l.squares[c.begin+i], BLANK)
+			}
+		}
 		l.incrementCluesBegin(c, length)
 	}
 }

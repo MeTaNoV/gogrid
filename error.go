@@ -23,3 +23,16 @@ var (
 	ErrInvalidTokenLine      = errors.New("invalid starting token for line info")
 	ErrTooManyLine           = errors.New("too many line compared to the size specified")
 )
+
+type SolveError struct {
+	s   *Square
+	err error
+}
+
+var (
+	ErrOverridingValue = errors.New("attempt to override an existing different value")
+)
+
+func (e *SolveError) Error() string {
+	return fmt.Sprintf("Error on square (%d,%d): %s", e.s.x+1, e.s.y+1, e.err)
+}
