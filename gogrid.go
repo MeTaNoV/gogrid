@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/MeTaNoV/griddler"
+	"github.com/MeTaNoV/gogrid/griddler"
 	"os"
 )
 

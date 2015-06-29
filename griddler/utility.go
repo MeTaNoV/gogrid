@@ -6,6 +6,15 @@ import (
 	"os"
 )
 
+type Tile struct {
+	val int
+}
+
+type Solver interface {
+	Solve() bool
+	SetValue(square *Square, val int)
+}
+
 // utility function to pause and wait for the user to press enter
 func Pause() {
 	var b []byte = make([]byte, 2)
@@ -35,7 +44,7 @@ func maxLength(cs [](*Clue)) int {
 }
 
 func minLength(cs [](*Clue)) int {
-	result := math.MaxUint8 // support of lines of length 256
+	result := math.MaxUint8 // support for lines of max length 256
 	for _, c := range cs {
 		result = min(result, c.length)
 	}
