@@ -13,9 +13,12 @@ func initFlags() {
 	const (
 		defaultFilename = "default.grid"
 		usageFilename   = "name of the griddler file to load."
+		defaultUseTrial = false
+		usageUseTrial   = "flag to enable trial&error algorithm"
 	)
 	flag.StringVar(&fileName, "file", defaultFilename, usageFilename)
 	flag.StringVar(&fileName, "f", defaultFilename, usageFilename)
+	flag.BoolVar(&griddler.UseTrial, "useTrial", defaultUseTrial, usageUseTrial)
 
 	flag.Parse()
 
