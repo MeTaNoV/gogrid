@@ -292,6 +292,11 @@ func (l *Line) updateCluesForRanges(rs [](*Range)) {
 	iRange := 0
 LoopBegin:
 	for iRange < len(rs) {
+		// if we didn't mapped all clue by this time, this is a puzzle issue
+		if iClue > l.ce {
+			panic(&SolveError{&Square{x: l.index, y: l.index}, ErrInvalidClueRange})
+		}
+
 		c := l.clues[iClue]
 		r := rs[iRange]
 
@@ -387,6 +392,11 @@ LoopBegin:
 	iRange = len(rs) - 1
 LoopEnd:
 	for iRange >= 0 {
+		// if we didn't mapped all clue by this time, this is a puzzle issue
+		if iClue < l.cb {
+			panic(&SolveError{&Square{x: l.index, y: l.index}, ErrInvalidClueRange})
+		}
+
 		c := l.clues[iClue]
 		r := rs[iRange]
 

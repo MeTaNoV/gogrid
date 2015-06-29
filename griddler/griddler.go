@@ -8,6 +8,10 @@ import (
 	"strings"
 )
 
+var (
+	UseTrial bool
+)
+
 type Griddler struct {
 	width         int
 	height        int
@@ -296,7 +300,7 @@ func (g *Griddler) Solve() bool {
 	for {
 		g.solveByLogic()
 
-		if !g.isDone() {
+		if !g.isDone() && UseTrial {
 			saved := g.save()
 
 			sst := &sStack{}
@@ -339,7 +343,8 @@ func (g *Griddler) solveByLogic() {
 	defer func() {
 		if r := recover(); r != nil {
 			if serr, ok := r.(*SolveError); ok {
-				fmt.Printf("%v", serr)
+				fmt.Printf("%v\n", serr)
+				fmt.Printf("Please verify your input file...\n")
 				os.Exit(1)
 			} else {
 				panic(r)
