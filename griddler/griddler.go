@@ -223,7 +223,7 @@ func (g *Griddler) save() *Griddler {
 		result.lines[i].ce = g.lines[i].ce
 		result.lines[i].isDone = g.lines[i].isDone
 		for j := 0; j < g.width; j++ {
-			result.lines[i].squares[j] = NewSquare(i, j, g.lines[i].squares[j].val)
+			result.lines[i].squares[j] = NewSquare(i, j, g.lines[i].squares[j].value)
 		}
 		result.lines[i].clues = make([](*Clue), len(g.lines[i].clues))
 		for j := 0; j < len(g.lines[i].clues); j++ {
@@ -269,7 +269,7 @@ func (g *Griddler) restore(clone *Griddler) {
 		g.lines[i].ce = clone.lines[i].ce
 		g.lines[i].isDone = clone.lines[i].isDone
 		for j := 0; j < clone.width; j++ {
-			g.lines[i].squares[j].val = clone.lines[i].squares[j].val
+			g.lines[i].squares[j].value = clone.lines[i].squares[j].value
 		}
 		for j := 0; j < len(clone.lines[i].clues); j++ {
 			g.lines[i].clues[j].begin = clone.lines[i].clues[j].begin
@@ -299,18 +299,25 @@ func (g *Griddler) Solve() bool {
 	nbTrial, nbTrialSuccess := 0, 0
 
 	for {
+		fmt.Println("\nSolving")
 		g.solveByLogic()
 
 		if !g.isDone() && UseTrial {
 			saved := g.save()
 
 			pq := make(prioQueue, 0)
-			g.populateForTrial(&pq)
+			selected, potential, total := g.populateForTrial(&pq)
+			fmt.Printf("Entering Trial&Error phase: %d / %d / %d\n", selected, potential, total)
 
 			hasError := false
+			attempt := 1
 			for !hasError {
-				s := heap.Pop(&pq).(*PrioSquare).Square
-				g.SetValue(g.lines[s.x].squares[s.y], FILLED)
+				if pq.Len() == 0 {
+					break
+				}
+				s := heap.Pop(&pq).(*PrioSquare)
+				fmt.Printf("\rAttempt %3d / %3d", attempt, selected)
+				g.SetValue(g.lines[s.x].squares[s.y], s.pvalue)
 				hasError = g.solveByTrial()
 				nbTrial++
 				if g.isDone() {
@@ -318,16 +325,24 @@ func (g *Griddler) Solve() bool {
 				}
 				g.restore(saved)
 				if hasError {
+					fmt.Printf("\nFOUND (%d,%d)\n", s.x+1, s.y+1)
 					nbTrialSuccess++
-					g.SetValue(g.lines[s.x].squares[s.y], BLANK)
+					if s.pvalue == FILLED {
+						g.SetValue(g.lines[s.x].squares[s.y], BLANK)
+					} else {
+						g.SetValue(g.lines[s.x].squares[s.y], FILLED)
+					}
+					g.Show()
 					break
 				}
+				attempt++
 			}
 		} else {
 			break
 		}
 	}
 
+	g.Show()
 	fmt.Printf("\nTotal trial attempts: %d/%d\n", nbTrialSuccess, nbTrial)
 	return g.isDone()
 }
@@ -356,42 +371,58 @@ func (g *Griddler) solveByLogic() {
 	g.solveGeneric()
 }
 
-func (g *Griddler) populateForTrial(pq *prioQueue) {
+func (g *Griddler) populateForTrial(pq *prioQueue) (selected int, potential int, total int) {
 	for i := 0; i < g.height; i++ {
 		for j := 0; j < g.width; j++ {
-			if g.lines[i].squares[j].val == EMPTY {
+			total++
+			if g.lines[i].squares[j].value == EMPTY {
+				potential++
 				// to assign a higher priority, we check for borders and neighbours
 				priority := 0
+				pvalue := FILLED
 				if i == 0 || i == g.height-1 {
 					priority++
 				}
 				if j == 0 || j == g.width-1 {
 					priority++
 				}
-				if i > 0 && g.lines[i-1].squares[j].val != EMPTY {
+				if i > 0 && g.lines[i-1].squares[j].value != EMPTY {
+					if g.lines[i-1].squares[j].value == FILLED {
+						pvalue = BLANK
+					}
 					priority++
 				}
-				if i < g.height-1 && g.lines[i+1].squares[j].val != EMPTY {
+				if i < g.height-1 && g.lines[i+1].squares[j].value != EMPTY {
+					if g.lines[i+1].squares[j].value == FILLED {
+						pvalue = BLANK
+					}
 					priority++
 				}
-				if j > 0 && g.lines[i].squares[j-1].val != EMPTY {
+				if j > 0 && g.lines[i].squares[j-1].value != EMPTY {
+					if g.lines[i].squares[j-1].value == FILLED {
+						pvalue = BLANK
+					}
 					priority++
 				}
-				if j < g.width-1 && g.lines[i].squares[j+1].val != EMPTY {
+				if j < g.width-1 && g.lines[i].squares[j+1].value != EMPTY {
+					if g.lines[i].squares[j+1].value == FILLED {
+						pvalue = BLANK
+					}
 					priority++
 				}
 				// we only add those
-				if priority > 0 {
-					heap.Push(pq, &PrioSquare{g.lines[i].squares[j], priority})
+				if priority >= 0 {
+					selected++
+					heap.Push(pq, &PrioSquare{g.lines[i].squares[j], pvalue, priority})
 				}
 			}
 		}
 	}
+	return
 }
 
 // TODO add a parameter to indicate the depth of the trial
-func (g *Griddler) solveByTrial() bool {
-	hasError := false
+func (g *Griddler) solveByTrial() (hasError bool) {
 	defer func() {
 		if r := recover(); r != nil {
 			if _, ok := r.(*SolveError); ok {
@@ -403,7 +434,7 @@ func (g *Griddler) solveByTrial() bool {
 	}()
 	g.solveGeneric()
 
-	return hasError
+	return
 }
 
 func (g *Griddler) solveGeneric() {
@@ -411,11 +442,11 @@ func (g *Griddler) solveGeneric() {
 	c := g.cStack.pop()
 	for l != nil || c != nil {
 		if l != nil && !l.isDone {
-			fmt.Printf("\n=================== checking line %d ===================\n", l.index+1)
+			//fmt.Printf("\n=================== checking line %d ===================\n", l.index+1)
 			g.solveLine(l)
 		}
 		if c != nil && !c.isDone {
-			fmt.Printf("\n=================== checking column %d ===================\n", c.index+1)
+			//fmt.Printf("\n=================== checking column %d ===================\n", c.index+1)
 			g.solveLine(c)
 		}
 		l = g.lStack.pop()
@@ -427,7 +458,7 @@ func (g *Griddler) solveLine(l *Line) {
 	// if we found all clues, we can blank all remaining square
 	if l.sumClues == l.totalClues {
 		for _, s := range l.squares {
-			if s.val == EMPTY {
+			if s.value == EMPTY {
 				g.SetValue(s, BLANK)
 			}
 		}
@@ -436,7 +467,7 @@ func (g *Griddler) solveLine(l *Line) {
 	// if we found all blanks, we can set the remaining clues
 	if l.sumBlanks == l.length-l.totalClues {
 		for _, s := range l.squares {
-			if s.val == EMPTY {
+			if s.value == EMPTY {
 				g.SetValue(s, FILLED)
 			}
 		}
@@ -452,24 +483,23 @@ func (g *Griddler) solveLine(l *Line) {
 	}
 }
 
-func (g *Griddler) SetValue(s *Square, val int) {
+func (g *Griddler) SetValue(s *Square, value int) {
 	switch {
-	case s.val == EMPTY:
-		s.val = val
+	case s.value == EMPTY:
+		s.value = value
 		g.lStack.push(g.lines[s.x])
 		g.cStack.push(g.columns[s.y])
-		if val == FILLED {
+		if value == FILLED {
 			g.lines[s.x].incrementClues()
 			g.columns[s.y].incrementClues()
 		} else {
 			g.lines[s.x].incrementBlanks()
 			g.columns[s.y].incrementBlanks()
 		}
-		fmt.Printf("FOUND (%d,%d)\n", s.x+1, s.y+1)
+		//fmt.Printf("FOUND (%d,%d)\n", s.x+1, s.y+1)
 		//g.solveQueue <- s
-		g.Show()
-		//Pause()
-	case s.val != val:
+		//g.Show()
+	case s.value != value:
 		panic(&SolveError{s, ErrOverridingValue})
 	}
 }

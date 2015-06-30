@@ -7,12 +7,12 @@ import (
 )
 
 type Tile struct {
-	val int
+	value int
 }
 
 type Solver interface {
 	Solve() bool
-	SetValue(square *Square, val int)
+	SetValue(square *Square, value int)
 }
 
 // utility function to pause and wait for the user to press enter

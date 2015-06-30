@@ -26,7 +26,7 @@ func NewSquare(x, y, v int) *Square {
 
 func (s Square) show() {
 	//fmt.Printf("(%d,%d,", s.x, s.y)
-	switch s.val {
+	switch s.value {
 	case EMPTY:
 		fmt.Printf(" ")
 	case BLANK:
@@ -39,6 +39,7 @@ func (s Square) show() {
 
 type PrioSquare struct {
 	*Square
+	pvalue   int
 	priority int
 }
 

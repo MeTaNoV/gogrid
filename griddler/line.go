@@ -139,7 +139,7 @@ func (l *Line) checkRangeForValue(value int, min, max int) bool {
 		return false
 	}
 	for i := min; i <= max; i++ {
-		if l.squares[i].val != value {
+		if l.squares[i].value != value {
 			return false
 		}
 	}
@@ -148,12 +148,12 @@ func (l *Line) checkRangeForValue(value int, min, max int) bool {
 
 func (l *Line) isSolved(r *Range) bool {
 	if r.min == 0 {
-		return l.squares[r.max+1].val == BLANK
+		return l.squares[r.max+1].value == BLANK
 	}
 	if r.max == l.length-1 {
-		return l.squares[r.min-1].val == BLANK
+		return l.squares[r.min-1].value == BLANK
 	}
-	return l.squares[r.max+1].val == BLANK && l.squares[r.min-1].val == BLANK
+	return l.squares[r.max+1].value == BLANK && l.squares[r.min-1].value == BLANK
 }
 
 func (l *Line) getAllRanges() [](*Range) {
@@ -166,13 +166,13 @@ func (l *Line) getAllRanges() [](*Range) {
 	for i := l.clues[l.cb].begin; i <= l.clues[l.ce].end; i++ {
 		s := l.squares[i]
 		switch {
-		case s.val == EMPTY, s.val == BLANK:
+		case s.value == EMPTY, s.value == BLANK:
 			if lastVal == FILLED {
 				max = i - 1
 				result = append(result, &Range{min: min, max: max})
 			}
-		case s.val == FILLED:
-			if s.val != lastVal {
+		case s.value == FILLED:
+			if s.value != lastVal {
 				// new one
 				min = i
 			}
@@ -181,7 +181,7 @@ func (l *Line) getAllRanges() [](*Range) {
 				result = append(result, &Range{min: min, max: max})
 			}
 		}
-		lastVal = s.val
+		lastVal = s.value
 	}
 
 	return result
@@ -196,26 +196,26 @@ func (l *Line) getUnsolvedRanges() [](*Range) {
 	for i := l.clues[l.cb].begin; i <= l.clues[l.ce].end; i++ {
 		s := l.squares[i]
 		switch {
-		case s.val == EMPTY, s.val == BLANK:
+		case s.value == EMPTY, s.value == BLANK:
 			if lastVal == FILLED {
 				max = i - 1
-				if l.squares[min-1].val != BLANK || l.squares[max+1].val != BLANK {
+				if l.squares[min-1].value != BLANK || l.squares[max+1].value != BLANK {
 					result = append(result, &Range{min: min, max: max})
 				}
 			}
-		case s.val == FILLED:
-			if lastVal != s.val {
+		case s.value == FILLED:
+			if lastVal != s.value {
 				// new one
 				min = i
 			}
 			if i == l.clues[l.ce].end {
 				max = i
-				if l.squares[min-1].val != BLANK {
+				if l.squares[min-1].value != BLANK {
 					result = append(result, &Range{min: min, max: max})
 				}
 			}
 		}
-		lastVal = s.val
+		lastVal = s.value
 	}
 
 	return result
@@ -230,16 +230,16 @@ func (l *Line) getSolvedRanges() [](*Range) {
 	for i := l.clues[l.cb].begin; i <= l.clues[l.ce].end; i++ {
 		s := l.squares[i]
 		switch {
-		case s.val == EMPTY:
-		case s.val == BLANK:
+		case s.value == EMPTY:
+		case s.value == BLANK:
 			if lastVal == FILLED {
 				max = i - 1
-				if min == l.clues[l.cb].begin || l.squares[min-1].val == BLANK {
+				if min == l.clues[l.cb].begin || l.squares[min-1].value == BLANK {
 					result = append(result, &Range{min: min, max: max})
 				}
 			}
-		case s.val == FILLED:
-			if lastVal != s.val {
+		case s.value == FILLED:
+			if lastVal != s.value {
 				// new one
 				min = i
 			}
@@ -248,7 +248,7 @@ func (l *Line) getSolvedRanges() [](*Range) {
 				result = append(result, &Range{min: min, max: max})
 			}
 		}
-		lastVal = s.val
+		lastVal = s.value
 	}
 
 	return result
@@ -263,25 +263,25 @@ func (l *Line) getEmptyRanges() [](*Range) {
 	for i := l.clues[l.cb].begin; i <= l.clues[l.ce].end; i++ {
 		s := l.squares[i]
 		switch {
-		case s.val == EMPTY:
-			if lastVal != s.val {
+		case s.value == EMPTY:
+			if lastVal != s.value {
 				// new one
 				min = i
 			}
-			if i == l.clues[l.ce].end && (min == l.clues[l.cb].begin || l.squares[min-1].val == BLANK) {
+			if i == l.clues[l.ce].end && (min == l.clues[l.cb].begin || l.squares[min-1].value == BLANK) {
 				max = i
 				result = append(result, &Range{min: min, max: max})
 			}
-		case s.val == BLANK:
+		case s.value == BLANK:
 			if lastVal == EMPTY {
 				max = i - 1
-				if min == l.clues[l.cb].begin || l.squares[min-1].val == BLANK {
+				if min == l.clues[l.cb].begin || l.squares[min-1].value == BLANK {
 					result = append(result, &Range{min: min, max: max})
 				}
 			}
-		case s.val == FILLED:
+		case s.value == FILLED:
 		}
-		lastVal = s.val
+		lastVal = s.value
 	}
 
 	return result
@@ -543,11 +543,11 @@ func (l *Line) getStepToNextBlank(r *Range, reverse bool) (bool, int) {
 	for i >= 0 && i < l.length {
 		s := l.squares[i]
 		switch {
-		case s.val == 0:
+		case s.value == 0:
 			result++
-		case s.val == 1:
+		case s.value == 1:
 			return true, result
-		case s.val == 2:
+		case s.value == 2:
 			return false, result
 		}
 		i = IncOrDec(i, reverse)

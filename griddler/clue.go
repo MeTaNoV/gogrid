@@ -40,15 +40,15 @@ func (c *Clue) solveConstraints(reverse bool) {
 	}
 	for {
 		switch {
-		case l.squares[i].val == EMPTY:
+		case l.squares[i].value == EMPTY:
 			empty++
-		case l.squares[i].val == BLANK:
+		case l.squares[i].value == BLANK:
 			if (empty + filled) < c.length {
 				l.updateCluesLimits(c, empty+filled+1, reverse)
 				empty = 0
 				filled = 0
 			}
-		case l.squares[i].val == FILLED:
+		case l.squares[i].value == FILLED:
 			filled++
 		}
 		i = IncOrDec(i, reverse)

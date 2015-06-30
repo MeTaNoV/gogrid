@@ -37,7 +37,7 @@ func solveInitAlgo(g Solver, l *Line) {
 // for each range of filled block on the line, try to determine the associated clue and
 // update relevant range information, then solveOverlap
 func solveFilledRanges(g Solver, l *Line) {
-	l.print("solveFilledRanges")
+	//l.print("solveFilledRanges")
 
 	for _, c := range l.clues {
 		c.solveConstraints(true)
@@ -50,7 +50,7 @@ func solveFilledRanges(g Solver, l *Line) {
 	l.updateCluesForRanges(rs)
 
 	for _, r := range rs {
-		r.print("solveFilledRanges")
+		//r.print("solveFilledRanges")
 
 		cs := l.getPotentialCluesForRange(r)
 
@@ -84,7 +84,7 @@ func solveFilledRanges(g Solver, l *Line) {
 }
 
 func solveEmptyRanges(g Solver, l *Line) {
-	l.print("solveEmptyRanges")
+	//l.print("solveEmptyRanges")
 	// first, we can handle the square not covered by any clue anymore
 	i := 0
 	for _, c := range l.clues {
@@ -123,7 +123,7 @@ func solveEmptyRanges(g Solver, l *Line) {
 // that candidate being the current clue or the next/previous one
 // and if we don't find one, we can blank
 func solveAlgo6(g Solver, l *Line) {
-	l.print("solveAlgo6")
+	//l.print("solveAlgo6")
 	rsg := l.getUnsolvedRanges()
 
 	for _, r := range rsg {
@@ -181,7 +181,7 @@ func solveAlgo6(g Solver, l *Line) {
 // i.e. if we find one that is currently the size or smaller that range size plus the gap, we can't do anything
 // if not we take the shortest we found to do the fill
 func solveAlgo7(g Solver, l *Line) {
-	l.print("solveAlgo7")
+	//l.print("solveAlgo7")
 	rsg := l.getUnsolvedRanges()
 
 	for _, r := range rsg {
@@ -232,7 +232,7 @@ func solveAlgo7(g Solver, l *Line) {
 // Algo 8: check possible border constraints following the pattern:
 // |..X... -> .0X... (1,Z>1,...) or ...XX... -> ..0XX... with (2,Z>2,...)
 func solveAlgo8(g Solver, l *Line) {
-	l.print("solveAlgo8")
+	//l.print("solveAlgo8")
 	// From the beginning
 	cb := l.clues[l.cb]
 	if l.checkRangeForValue(2, cb.begin+cb.length+1, cb.begin+2*cb.length) {
