@@ -2,6 +2,7 @@ package griddler
 
 import (
 	"bufio"
+	"container/heap"
 	"fmt"
 	"os"
 	"strconv"
@@ -303,12 +304,12 @@ func (g *Griddler) Solve() bool {
 		if !g.isDone() && UseTrial {
 			saved := g.save()
 
-			sst := &sStack{}
-			g.populateForTrial(sst)
+			pq := make(prioQueue, 0)
+			g.populateForTrial(&pq)
 
 			hasError := false
 			for !hasError {
-				s := sst.pop()
+				s := heap.Pop(&pq).(*PrioSquare).Square
 				g.SetValue(g.lines[s.x].squares[s.y], FILLED)
 				hasError = g.solveByTrial()
 				nbTrial++
@@ -319,6 +320,7 @@ func (g *Griddler) Solve() bool {
 				if hasError {
 					nbTrialSuccess++
 					g.SetValue(g.lines[s.x].squares[s.y], BLANK)
+					break
 				}
 			}
 		} else {
@@ -354,11 +356,34 @@ func (g *Griddler) solveByLogic() {
 	g.solveGeneric()
 }
 
-func (g *Griddler) populateForTrial(sst *sStack) {
+func (g *Griddler) populateForTrial(pq *prioQueue) {
 	for i := 0; i < g.height; i++ {
-		for j := 0; j < g.lines[i].length; j++ {
+		for j := 0; j < g.width; j++ {
 			if g.lines[i].squares[j].val == EMPTY {
-				sst.push(g.lines[i].squares[j])
+				// to assign a higher priority, we check for borders and neighbours
+				priority := 0
+				if i == 0 || i == g.height-1 {
+					priority++
+				}
+				if j == 0 || j == g.width-1 {
+					priority++
+				}
+				if i > 0 && g.lines[i-1].squares[j].val != EMPTY {
+					priority++
+				}
+				if i < g.height-1 && g.lines[i+1].squares[j].val != EMPTY {
+					priority++
+				}
+				if j > 0 && g.lines[i].squares[j-1].val != EMPTY {
+					priority++
+				}
+				if j < g.width-1 && g.lines[i].squares[j+1].val != EMPTY {
+					priority++
+				}
+				// we only add those
+				if priority > 0 {
+					heap.Push(pq, &PrioSquare{g.lines[i].squares[j], priority})
+				}
 			}
 		}
 	}

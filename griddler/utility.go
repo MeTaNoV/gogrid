@@ -93,23 +93,3 @@ func (st *lStack) pop() *Line {
 	*st = (*st)[0 : len(*st)-1]
 	return ret
 }
-
-type sStack [](*Square)
-
-func (st *sStack) push(nste *Square) {
-	for _, ste := range *st {
-		if ste == nste {
-			return
-		}
-	}
-	*st = append(*st, nste)
-}
-
-func (st *sStack) pop() *Square {
-	if len(*st) == 0 {
-		return nil
-	}
-	ret := (*st)[len(*st)-1]
-	*st = (*st)[0 : len(*st)-1]
-	return ret
-}

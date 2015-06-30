@@ -31,7 +31,8 @@ type SolveError struct {
 
 var (
 	ErrOverridingValue  = errors.New("attempt to override an existing different value")
-	ErrInvalidClueRange = errors.New("too many clues are filled already")
+	ErrInvalidClueRange = errors.New("too many clues are present on the line/column")
+	ErrInvalidClueSize  = errors.New("the limits of the clue has been reduced to a size less than its length")
 )
 
 func (e *SolveError) Error() string {

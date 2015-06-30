@@ -10,17 +10,17 @@ const (
 	FILLED
 )
 
-// Square is the basic element of the grid
+// Square is the basic element of the grid, it inherits val from Tile
 type Square struct {
+	Tile
 	x, y int
-	val  int
 }
 
 func NewSquare(x, y, v int) *Square {
 	return &Square{
-		x:   x,
-		y:   y,
-		val: v,
+		Tile{v},
+		x,
+		y,
 	}
 }
 
@@ -35,4 +35,36 @@ func (s Square) show() {
 		fmt.Printf("X")
 	}
 	//fmt.Printf(")")
+}
+
+type PrioSquare struct {
+	*Square
+	priority int
+}
+
+type prioQueue [](*PrioSquare)
+
+func (pq prioQueue) Len() int {
+	return len(pq)
+}
+
+func (pq prioQueue) Less(i, j int) bool {
+	return pq[i].priority > pq[j].priority
+}
+
+func (pq prioQueue) Swap(i, j int) {
+	pq[i], pq[j] = pq[j], pq[i]
+}
+
+func (pq *prioQueue) Push(x interface{}) {
+	item := x.(*PrioSquare)
+	*pq = append(*pq, item)
+}
+
+func (pq *prioQueue) Pop() interface{} {
+	old := *pq
+	n := len(old)
+	item := old[n-1]
+	*pq = old[0 : n-1]
+	return item
 }
