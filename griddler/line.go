@@ -93,6 +93,9 @@ func (l *Line) incrementCluesBegin(begC *Clue, n int) {
 				return
 			}
 		}
+		if l.clues[i].end-l.clues[i].begin < l.clues[i].length-1 {
+			panic(&SolveError{&Square{x: l.index, y: l.index}, ErrInvalidClueSize})
+		}
 	}
 }
 
@@ -111,6 +114,9 @@ func (l *Line) decrementCluesEnd(endC *Clue, n int) {
 			} else {
 				return
 			}
+		}
+		if l.clues[i].end-l.clues[i].begin < l.clues[i].length-1 {
+			panic(&SolveError{&Square{x: l.index, y: l.index}, ErrInvalidClueSize})
 		}
 	}
 }
