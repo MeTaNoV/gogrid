@@ -411,7 +411,7 @@ func (g *Griddler) populateForTrial(pq *prioQueue) (selected int, potential int,
 					priority++
 				}
 				// we only add those
-				if priority >= 0 {
+				if priority > 0 {
 					selected++
 					heap.Push(pq, &PrioSquare{g.lines[i].squares[j], pvalue, priority})
 				}
