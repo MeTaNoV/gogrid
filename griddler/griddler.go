@@ -18,8 +18,8 @@ type Griddler struct {
 	height        int
 	lines         [](*Line)
 	columns       [](*Line)
-	lStack        lStack
-	cStack        lStack
+	lStack        Stack
+	cStack        Stack
 	solveInitAlgo Algorithm
 	solveAlgos    []Algorithm
 	//solveQueue    chan (*Square)
@@ -27,8 +27,8 @@ type Griddler struct {
 
 func New() *Griddler {
 	g := &Griddler{
-		lStack:        lStack{},
-		cStack:        lStack{},
+		lStack:        Stack{},
+		cStack:        Stack{},
 		solveInitAlgo: solveInitAlgo,
 		solveAlgos: []Algorithm{
 			solveFilledRanges,
@@ -438,8 +438,18 @@ func (g *Griddler) solveByTrial() (hasError bool) {
 }
 
 func (g *Griddler) solveGeneric() {
-	l := g.lStack.pop()
-	c := g.cStack.pop()
+	var l, c *Line
+	if ok := g.lStack.pop(); ok != nil {
+		l = ok.(*Line)
+	} else {
+		l = nil
+	}
+	if ok := g.cStack.pop(); ok != nil {
+		c = ok.(*Line)
+	} else {
+		c = nil
+	}
+
 	for l != nil || c != nil {
 		if l != nil && !l.isDone {
 			//fmt.Printf("\n=================== checking line %d ===================\n", l.index+1)
@@ -449,8 +459,16 @@ func (g *Griddler) solveGeneric() {
 			//fmt.Printf("\n=================== checking column %d ===================\n", c.index+1)
 			g.solveLine(c)
 		}
-		l = g.lStack.pop()
-		c = g.cStack.pop()
+		if ok := g.lStack.pop(); ok != nil {
+			l = ok.(*Line)
+		} else {
+			l = nil
+		}
+		if ok := g.cStack.pop(); ok != nil {
+			c = ok.(*Line)
+		} else {
+			c = nil
+		}
 	}
 }
 

@@ -2,6 +2,7 @@ package griddler
 
 import (
 	"fmt"
+	"math"
 )
 
 type Clue struct {
@@ -73,4 +74,20 @@ func (c *Clue) solveCompleteness() {
 
 func (c *Clue) contains(r *Range) bool {
 	return c.begin <= r.min && c.end >= r.max
+}
+
+func maxLength(cs [](*Clue)) int {
+	result := 0
+	for _, c := range cs {
+		result = max(result, c.length)
+	}
+	return result
+}
+
+func minLength(cs [](*Clue)) int {
+	result := math.MaxUint8 // support for lines of max length 256
+	for _, c := range cs {
+		result = min(result, c.length)
+	}
+	return result
 }

@@ -2,21 +2,12 @@ package griddler
 
 import (
 	"fmt"
-	"math"
 	"os"
 )
 
-type Tile struct {
-	value int
-}
-
-type Solver interface {
-	Solve() bool
-	SetValue(square *Square, value int)
-}
-
 // utility function to pause and wait for the user to press enter
-func Pause() {
+func PauseEnter() {
+	fmt.Println("Press Enter to continue...")
 	var b []byte = make([]byte, 2)
 	os.Stdin.Read(b)
 }
@@ -35,22 +26,6 @@ func min(a, b int) int {
 	return a
 }
 
-func maxLength(cs [](*Clue)) int {
-	result := 0
-	for _, c := range cs {
-		result = max(result, c.length)
-	}
-	return result
-}
-
-func minLength(cs [](*Clue)) int {
-	result := math.MaxUint8 // support for lines of max length 256
-	for _, c := range cs {
-		result = min(result, c.length)
-	}
-	return result
-}
-
 func IncOrDec(i int, reverse bool) int {
 	if reverse {
 		i--
@@ -60,36 +35,27 @@ func IncOrDec(i int, reverse bool) int {
 	return i
 }
 
-// utility struc Range
-type Range struct {
-	min, max int
-}
-
-func (r *Range) length() int {
-	return r.max - r.min + 1
-}
-
-func (r *Range) print(prefix string) {
-	fmt.Printf("%s-->Range(b:%d,e:%d)\n", prefix, r.min+1, r.max+1)
-}
-
 // Special stack implementation where elements are unique
-type lStack [](*Line)
+type Element struct {
+	Value interface{}
+}
 
-func (st *lStack) push(nste *Line) {
+type Stack []Element
+
+func (st *Stack) push(elt interface{}) {
 	for _, ste := range *st {
-		if ste == nste {
+		if ste.Value == elt {
 			return
 		}
 	}
-	*st = append(*st, nste)
+	*st = append(*st, Element{Value: elt})
 }
 
-func (st *lStack) pop() *Line {
+func (st *Stack) pop() interface{} {
 	if len(*st) == 0 {
 		return nil
 	}
 	ret := (*st)[len(*st)-1]
 	*st = (*st)[0 : len(*st)-1]
-	return ret
+	return ret.Value
 }

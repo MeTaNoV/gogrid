@@ -94,6 +94,10 @@ func (l *Line) incrementCluesBegin(begC *Clue, n int) {
 			}
 		}
 		if l.clues[i].end-l.clues[i].begin < l.clues[i].length-1 {
+			//l.g.Show()
+			//l.print("incrementCluesBegin")
+			//l.clues[i].print("incrementCluesBegin")
+			//Pause()
 			panic(&SolveError{&Square{x: l.index, y: l.index}, ErrInvalidClueSize})
 		}
 	}
@@ -116,6 +120,10 @@ func (l *Line) decrementCluesEnd(endC *Clue, n int) {
 			}
 		}
 		if l.clues[i].end-l.clues[i].begin < l.clues[i].length-1 {
+			//l.g.Show()
+			//l.print("incrementCluesBegin")
+			//l.clues[i].print("incrementCluesBegin")
+			//Pause()
 			panic(&SolveError{&Square{x: l.index, y: l.index}, ErrInvalidClueSize})
 		}
 	}
